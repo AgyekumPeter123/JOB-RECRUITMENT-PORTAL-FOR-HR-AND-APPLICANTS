@@ -66,6 +66,7 @@ body::after { right: -140px; bottom: -120px; background: rgba(249, 115, 22, 0.16
   animation: floatIn 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Hero Panel & Brand Modernization */
 .hero-panel {
   position: relative; overflow: hidden; border-radius: calc(var(--radius) + 6px);
   padding: clamp(28px, 4vw, 48px); background: linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,255,255,0.78));
@@ -80,27 +81,36 @@ body::after { right: -140px; bottom: -120px; background: rgba(249, 115, 22, 0.16
 .hero-panel > * { position: relative; z-index: 1; }
 
 .brand-row {
-  display: inline-flex; align-items: center; gap: 12px; padding: 10px 14px;
-  border-radius: 999px; background: rgba(255,255,255,0.9); border: 1px solid var(--surface-border);
-  color: var(--text-main); margin-bottom: 28px;
-}
-.brand-mark {
-  width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center;
-  background: linear-gradient(135deg, var(--primary), var(--accent)); color: white;
-  font-weight: 900; box-shadow: 0 16px 30px rgba(45, 212, 191, 0.18);
+  display: inline-flex; align-items: center; gap: 14px; padding: 10px 16px 10px 10px;
+  border-radius: 999px; background: rgba(255,255,255,0.95); border: 1px solid var(--surface-border);
+  color: var(--text-main); margin-bottom: 28px; box-shadow: var(--shadow-sm);
 }
 
-.hero-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 28px; }
+/* New High-Contrast 2-Color Logo */
+.brand-mark {
+  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(135deg, #0f172a 0%, #f97316 100%); color: white;
+  font-size: 1.4rem; font-weight: 900; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
+}
+
+/* Fluid Grid Fix for Mobile Overflow */
+.hero-grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+  gap: 16px; 
+  margin-top: 28px; 
+}
 .hero-stat { padding: 18px; border-radius: var(--radius-sm); background: rgba(255,255,255,0.88); border: 1px solid var(--surface-border); }
 .hero-stat strong, .panel-card strong, .metric-value { display: block; font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 800; letter-spacing: -0.04em; margin-top: 8px; }
-.hero-note { margin-top: 24px; display: grid; gap: 12px; max-width: 540px; }
+
+.hero-note { margin-top: 24px; display: grid; grid-template-columns: 1fr; gap: 12px; max-width: 100%; }
 .hero-note-item { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; background: rgba(255,255,255,0.84); border: 1px solid var(--surface-border); border-radius: 18px; }
 .hero-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); margin-top: 7px; flex: 0 0 auto; }
 
 .login-card {
   position: relative; align-self: center; padding: 28px; border-radius: calc(var(--radius) + 2px);
   background: rgba(255,255,255,0.9); border: 1px solid var(--surface-border);
-  box-shadow: var(--shadow-lg); backdrop-filter: blur(18px); width: 100%;
+  box-shadow: var(--shadow-lg); backdrop-filter: blur(18px); width: 100%; box-sizing: border-box;
 }
 
 .login-card h2, .page-title, .section-heading, .card h3 { letter-spacing: -0.04em; }
@@ -249,27 +259,36 @@ a:hover { text-decoration: underline; }
    CARD OVERFLOW & FLEX WRAPPING FIXES 
 ---------------------------------------------*/
 .compact-card {
-  width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
   max-width: 100%;
   box-sizing: border-box;
 }
 
-/* Ensure flex containers wrap their child elements rather than squishing them */
-.compact-card div[style*="display: flex"],
-.compact-card div[style*="display:flex"],
-.card div[style*="display: flex"],
-.card div[style*="display:flex"] {
-  flex-wrap: wrap !important;
-  gap: 12px;
+.app-meta, .job-description, .browse-description {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Force long words (like URLs) to break safely, but NOT buttons */
-.app-meta, .job-description, .browse-description, .employee-meta {
-  width: 100%;
-  overflow-wrap: break-word;
-  word-break: break-word;
+.compact-card .button, 
+.status-pill {
+  white-space: nowrap;
+  flex: 1 1 auto;
+  text-align: center;
 }
-.app-profile-pic { flex-shrink: 0; }
+
+.compact-card > div[style*="display: flex"],
+.compact-card > div[style*="display:flex"] {
+  flex-wrap: wrap;
+  gap: 12px;
+  max-width: 100%;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
 
 /* Kanban Pipeline Styles */
 .kanban-board {
@@ -306,7 +325,7 @@ a:hover { text-decoration: underline; }
    RESPONSIVE MEDIA QUERIES
 ---------------------------------------------*/
 
-/* Tablet and below: Stack the Layout vertically to stop card squishing */
+/* Tablet Layout */
 @media (max-width: 1050px) {
   .dashboard-grid {
     display: flex !important;
@@ -328,7 +347,6 @@ a:hover { text-decoration: underline; }
   body { padding: 12px; }
   .shell { width: 100%; overflow: hidden; }
   
-  /* Ensure padding doesn't cause overflow */
   .card, .panel-card, .section-card, .compact-card {
     padding: 16px;
     box-sizing: border-box;
@@ -341,6 +359,8 @@ a:hover { text-decoration: underline; }
   .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
   .helper-row { width: 100%; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
   .helper-row > * { flex: 1 1 auto; text-align: center; }
+
+  .brand-row { flex-direction: column; align-items: flex-start; text-align: left; border-radius: 18px; padding: 16px; }
 
   /* Smooth Edge-to-Edge Kanban Scrolling on phones */
   .kanban-board {
