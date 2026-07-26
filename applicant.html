@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dagyes Group | Candidate Portal</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="animate-in">
+  <div class="shell">
+    <div id="status-banner" class="banner" hidden></div>
+
+    <header class="page-header">
+      <div>
+        <div class="topline">Applicant Dashboard</div>
+        <h1 id="profile-name" class="page-title">Candidate Portal</h1>
+        <p class="subtle">Browse jobs, Apply, and keep an eye on every status update from one place.</p>
+      </div>
+      <div class="helper-row">
+        <span class="chip" data-scroll-to="apply-section">Jobs</span>
+        <span class="chip" data-scroll-to="applicant-applications">Applications</span>
+        <span class="chip" data-scroll-to="applicant-notifications">Alerts</span>
+        <button id="sign-out-button" class="button button-secondary">Sign Out</button>
+      </div>
+    </header>
+
+    <div class="dashboard-grid">
+      <div class="card wide-7" id="apply-section">
+        <div class="section-title">
+          <h3>Available Vacancies</h3>
+          <span class="chip">Open roles</span>
+        </div>
+        <div id="job-browse-list" class="application-list"></div>
+      </div>
+
+      <div class="wide-5">
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div class="section-title">
+            <h3>Submit Application</h3>
+            <span class="chip">Details</span>
+          </div>
+          <form id="attach-cv-form" class="form-grid">
+            <label class="full-width">Selected Job <input type="text" name="job_name_display" readonly required placeholder="Click 'Apply' on a job" /></label>
+            <input type="hidden" name="job_id" />
+            <label class="full-width">Cover Letter <textarea name="cover_letter" rows="4"></textarea></label>
+            <label class="full-width">Profile Picture <input type="file" name="profile_picture" accept="image/*" /></label>
+            <div class="full-width" id="profile-picture-preview-wrap" hidden>
+              <div class="section-title" style="margin-bottom: 0.65rem;">
+                <h3 style="font-size: 0.95rem;">Preview</h3>
+                <span class="chip">Before submit</span>
+              </div>
+              <img id="profile-picture-preview" alt="Profile picture preview" style="width: 120px; height: 120px; object-fit: cover; border-radius: 20px; border: 1px solid #e2e8f0; background: #fff; display: block;" />
+            </div>
+            <label class="full-width">Attach CV (PDF) <input type="file" name="cv" accept=".pdf,.doc,.docx" /></label>
+            <button class="button button-primary full-width" type="submit">Submit Application</button>
+          </form>
+        </div>
+
+       <div class="card">
+          <div class="section-title">
+            <h3>My Alerts</h3>
+            <button class="button button-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;" data-action="clear-alerts">Clear All</button>
+          </div>
+          <div id="applicant-notifications" class="application-list"></div>
+        </div>
+      </div>
+
+      <div class="card wide-12">
+        <div class="section-title">
+          <h3>My Application History</h3>
+          <span class="chip">Timeline</span>
+        </div>
+        <div id="applicant-applications" class="application-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <template id="job-browse-template">
+    <article class="compact-card">
+      <h3 class="browse-title" style="font-size: 1.1rem;"></h3>
+      <p class="browse-meta topline" style="margin-bottom: 0.5rem;"></p>
+      <p class="browse-description" style="font-size: 0.9rem; margin-bottom: 1rem;"></p>
+      <button class="button button-primary" style="padding: 0.4rem 1rem; font-size: 0.85rem;" data-job-apply>Select & Apply</button>
+    </article>
+  </template>
+
+  <!-- Back to top button -->
+  <button id="back-to-top" class="button button-primary" title="Back to Top">↑</button>
+
+  <script>
+    window.SUPABASE_CONFIG = {
+      url: 'https://hshdlewjdrkfjoprgcqb.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhzaGRsZXdqZHJrZmpvcHJnY3FiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NzY1ODIsImV4cCI6MjEwMDI1MjU4Mn0.R5YFlKQAlfO6EPGH3rmxmF536tqLGqVcV8jcp8cD4Nw',
+      googleOAuthEnabled: true,
+      oauthRedirectUrl: window.location.origin + window.location.pathname
+    };
+  </script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

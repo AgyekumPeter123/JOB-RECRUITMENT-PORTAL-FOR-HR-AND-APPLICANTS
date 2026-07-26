@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dagyes Group | HR Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="animate-in">
+  <div class="shell">
+    <div id="status-banner" class="banner" hidden></div>
+
+    <header class="page-header">
+      <div>
+        <div class="topline">Management Dashboard</div>
+        <h1 id="profile-name" class="page-title">HR Portal</h1>
+        <p class="subtle">Monitor recruiting, manage candidates, and keep the workforce view in sync.</p>
+      </div>
+      <div class="helper-row">
+        <!-- Added Navigation Tags -->
+        <span class="chip" data-scroll-to="job-form-section">Recruitment</span>
+        <span class="chip" data-scroll-to="employee-list">Employees</span>
+        <span class="chip" data-scroll-to="notification-list">Notifications</span>
+        <!-- Added Report Button -->
+        <button id="generate-report-btn" class="button button-primary" style="padding: 0.45rem 1rem; font-size: 0.85rem;">Generate Report</button>
+        <button id="sign-out-button" class="button button-secondary">Sign Out</button>
+      </div>
+    </header>
+
+    <section class="panel-grid">
+      <article class="panel-card">
+        <span class="metric-label">Open Jobs</span>
+        <strong id="hr-metric-jobs" class="metric-value">0</strong>
+        <span class="metric-foot">Active vacancies currently published</span>
+      </article>
+      <article class="panel-card">
+        <span class="metric-label">Applicants</span>
+        <strong id="hr-metric-applicants" class="metric-value">0</strong>
+        <span class="metric-foot">Applications in the pipeline</span>
+      </article>
+      <article class="panel-card">
+        <span class="metric-label">Employees</span>
+        <strong id="hr-metric-employees" class="metric-value">0</strong>
+        <span class="metric-foot">Hired and onboarding records</span>
+      </article>
+      <article class="panel-card">
+        <span class="metric-label">Alerts</span>
+        <strong id="hr-metric-alerts" class="metric-value">0</strong>
+        <span class="metric-foot">Unread updates and tasks</span>
+      </article>
+    </section>
+
+   <div class="dashboard-grid">
+      <div class="card wide-6" id="job-form-section">
+        <div class="section-title">
+          <h3>Post a New Job</h3>
+          <span class="chip">Hiring</span>
+        </div>
+        <form id="job-form" class="form-grid">
+          <label class="full-width">Job Title <input type="text" name="title" required /></label>
+          <label>Department <input type="text" name="department" /></label>
+          <label>Location <input type="text" name="location" /></label>
+          <label>Type 
+            <select name="employment_type">
+              <option value="Full-time">Full-time</option>
+              <option value="Part-time">Part-time</option>
+              <option value="Contract">Contract</option>
+            </select>
+          </label>
+          <label>Min Salary <input type="number" name="salary_min" /></label>
+          <label>Max Salary <input type="number" name="salary_max" /></label>
+          <label class="full-width">Description <textarea name="description" required rows="3"></textarea></label>
+          <button class="button button-primary full-width" type="submit">Post Job Vacancy</button>
+        </form>
+      </div>
+
+      <div class="card wide-6">
+        <div class="section-title">
+          <h3>Active Job Postings</h3>
+          <span class="chip">Public</span>
+        </div>
+        <div id="job-list" class="application-list"></div>
+      </div>
+
+      <div class="card wide-12">
+        <div class="section-title">
+          <h3>Applicant Pipeline</h3>
+          <span class="chip">Processes</span>
+        </div>
+        <div class="kanban-board">
+          <div class="kanban-col">
+            <div class="kanban-header"><span>Received</span> <span class="kanban-count" id="count-received">0</span></div>
+            <div id="list-received" class="application-list" style="margin-top:0;"></div>
+          </div>
+          <div class="kanban-col">
+            <div class="kanban-header"><span>Shortlisted</span> <span class="kanban-count" id="count-shortlisted">0</span></div>
+            <div id="list-shortlisted" class="application-list" style="margin-top:0;"></div>
+          </div>
+          <div class="kanban-col">
+            <div class="kanban-header"><span>Interviewing</span> <span class="kanban-count" id="count-interviewing">0</span></div>
+            <div id="list-interviewing" class="application-list" style="margin-top:0;"></div>
+          </div>
+          <div class="kanban-col">
+            <div class="kanban-header"><span>Offer</span> <span class="kanban-count" id="count-offer">0</span></div>
+            <div id="list-offer" class="application-list" style="margin-top:0;"></div>
+          </div>
+          <div class="kanban-col">
+            <div class="kanban-header"><span>Hired</span> <span class="kanban-count" id="count-hired">0</span></div>
+            <div id="list-hired" class="application-list" style="margin-top:0;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card wide-6">
+        <div class="section-title">
+          <h3>Employee Directory</h3>
+          <span class="chip">People</span>
+        </div>
+        <div id="employee-list" class="application-list"></div>
+      </div>
+
+      <div class="card wide-6">
+        <div class="section-title">
+          <h3>System Alerts</h3>
+          <button class="button button-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;" data-action="clear-alerts">Clear All</button>
+        </div>
+        <div id="notification-list" class="application-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <template id="job-template">
+    <article class="compact-card">
+      <h3 class="job-title" style="font-size: 1.1rem;"></h3>
+      <p class="job-meta topline" style="margin-bottom: 0.5rem;"></p>
+      <p class="job-description" style="font-size: 0.9rem; margin-bottom: 1rem;"></p>
+      <p class="job-salary"></p>
+      <div style="display: flex; gap: 0.5rem; margin-top:1rem;">
+        <button class="button button-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" data-job-edit>Edit</button>
+        <button class="button button-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; color: var(--bad);" data-job-close>Close</button>
+      </div>
+    </article>
+  </template>
+
+  <template id="application-template">
+    <article class="compact-card" style="box-shadow: none; border-color: #e2e8f0; padding: 16px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+        <div style="display:flex; gap:12px; align-items:center;">
+          <div class="app-profile-pic"></div>
+          <div>
+            <h3 class="app-name" style="margin:0; font-size:1.05rem;"></h3>
+            <p class="app-role-name eyebrow" style="margin-top:4px;"></p>
+          </div>
+        </div>
+        <span class="status-pill" style="font-size: 0.65rem; padding: 0.2rem 0.5rem;"></span>
+      </div>
+      
+      <div class="app-meta" style="font-size: 0.85rem; margin-bottom: 12px; color:var(--text-muted); line-height: 1.6;"></div>
+      
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <button class="button button-secondary" style="flex:1; padding: 0.3rem 0; font-size: 0.75rem;" data-application-action="shortlist">Shortlist</button>
+        <button class="button button-secondary" style="flex:1; padding: 0.3rem 0; font-size: 0.75rem;" data-application-action="interview">Interview</button>
+        <button class="button button-secondary" style="flex:1; padding: 0.3rem 0; font-size: 0.75rem;" data-application-action="offer">Offer</button>
+        <button class="button button-primary" style="flex:1; padding: 0.3rem 0; font-size: 0.75rem; background: var(--good);" data-application-action="hire">Hire</button>
+        <button class="button button-secondary" style="flex:1; padding: 0.3rem 0; font-size: 0.75rem; color: var(--bad);" data-application-action="reject">Reject</button>
+      </div>
+    </article>
+  </template>
+
+  <template id="employee-template">
+    <article class="compact-card">
+      <h3 class="employee-name" style="font-size: 1.1rem;"></h3>
+      <p class="employee-role topline"></p>
+      <p class="employee-meta" style="font-size: 0.9rem; margin: 0.5rem 0;"></p>
+      <div style="display: flex; gap: 0.5rem;">
+        <button class="button button-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" data-employee-status>Update Status</button>
+        <button class="button button-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; color: var(--warn);" data-employee-terminate>Terminate</button>
+        <button class="button button-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; color: var(--bad);" data-employee-remove>Remove</button>
+      </div>
+    </article>
+  </template>
+
+  <!-- Back to top button -->
+  <button id="back-to-top" class="button button-primary" title="Back to Top">↑</button>
+
+  <script>
+    window.SUPABASE_CONFIG = {
+      url: 'https://hshdlewjdrkfjoprgcqb.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhzaGRsZXdqZHJrZmpvcHJnY3FiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NzY1ODIsImV4cCI6MjEwMDI1MjU4Mn0.R5YFlKQAlfO6EPGH3rmxmF536tqLGqVcV8jcp8cD4Nw',
+      googleOAuthEnabled: true,
+      oauthRedirectUrl: window.location.origin + window.location.pathname
+    };
+  </script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
