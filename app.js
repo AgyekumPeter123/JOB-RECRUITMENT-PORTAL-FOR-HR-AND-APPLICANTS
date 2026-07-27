@@ -62,7 +62,7 @@ function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace
 function formatDateTime(value) { return !value ? 'Not set' : new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
 function isHr() { return state.profile?.role === 'hr'; }
 
-// Full Alert View Modal
+// Full Alert View Modal (Now supports line breaks for clean reading)
 function alertModal(title, message, dateStr) {
   return new Promise((resolve) => {
     const dialog = document.createElement('dialog');
@@ -70,7 +70,7 @@ function alertModal(title, message, dateStr) {
     dialog.innerHTML = `
       <h3 style="margin-bottom:8px; font-size:1.15rem; line-height:1.3;">${title}</h3>
       <span class="eyebrow" style="display:block; margin-bottom:14px;">${dateStr}</span>
-      <p style="color:var(--text-muted); margin-bottom:1.5rem; line-height:1.6; font-size:0.95rem;">${message}</p>
+      <p style="color:var(--text-muted); margin-bottom:1.5rem; line-height:1.6; font-size:0.95rem; white-space:pre-wrap;">${message}</p>
       <button class="button button-primary full-width" id="modal-alert-ok">Close</button>
     `;
     document.body.appendChild(dialog);
@@ -266,14 +266,14 @@ function renderApplications() {
     const card = el.applicationTemplate.content.cloneNode(true);
     const picWrap = card.querySelector('.app-profile-pic');
     
-    const candidateName = app.user_profiles?.full_name || 'Applicant';
+    const candidateName = app.user_profiles?.full_name || 'Candidate';
     const initials = getInitials(candidateName);
     
-    // Injecting initials as the fallback instead of "NO PIC"
+    // Generates the person's initials if there is no image
     if (picWrap) {
       picWrap.innerHTML = app.profile_picture_url ? 
-        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${initials}</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
-        `<div class="avatar-fallback">${initials}</div>`;
+        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${escapeHtml(initials)}</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
+        `<div class="avatar-fallback">${escapeHtml(initials)}</div>`;
     }
 
     card.querySelector('.app-name').textContent = candidateName;
@@ -337,6 +337,7 @@ function renderNotifications() {
       const readClass = n.is_read ? 'read' : 'unread';
       const readActionHtml = n.is_read ? '' : `<button class="button button-secondary" style="padding:2px 8px; font-size:0.75rem;" data-notification-read="${n.id}">Mark as read</button>`;
 
+      // The list card now only shows the Title, masking the details until clicked
       target.insertAdjacentHTML('beforeend', `
         <article class="card notification-card ${readClass}" style="box-shadow:none; padding:12px 16px; margin-bottom:1rem; cursor:pointer;" data-notification-id="${n.id}">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -346,7 +347,7 @@ function renderNotifications() {
               <button class="button button-secondary" style="padding:2px 8px; font-size:0.8rem; border:none; background:transparent; color:var(--bad);" title="Dismiss" data-notification-delete="${n.id}">✕</button>
             </div>
           </div>
-          <p style="font-size:0.9rem; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(n.body)}</p>
+          <p style="font-size:0.85rem; margin-top:8px; color:var(--primary); font-weight:600;">Tap to view details &rarr;</p>
           <small class="eyebrow" style="display:block; margin-top:8px;">${formatDateTime(n.created_at)}</small>
         </article>
       `);
@@ -379,13 +380,13 @@ function renderApplicantArea() {
       `;
     }
 
-    const applicantName = app.user_profiles?.full_name || 'Applicant';
+    const applicantName = app.user_profiles?.full_name || 'Candidate';
     const initials = getInitials(applicantName);
 
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
         <div style="display:flex; gap:1rem; align-items:center; min-width:0;">
-          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback-lg\\'>${initials}</div>'" alt="Profile picture" style="width:72px; height:72px; object-fit:cover; border-radius:18px; border:1px solid #e2e8f0; background:#fff; flex:0 0 auto;" />` : `<div class="avatar-fallback-lg">${initials}</div>`}
+          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback-lg\\'>${escapeHtml(initials)}</div>'" alt="Profile picture" style="width:72px; height:72px; object-fit:cover; border-radius:18px; border:1px solid #e2e8f0; background:#fff; flex:0 0 auto;" />` : `<div class="avatar-fallback-lg">${escapeHtml(initials)}</div>`}
           <div style="min-width:0;">
             <h3 style="margin:0;">${escapeHtml(app.job_posts?.title || '')}</h3>
             <p style="margin:0.35rem 0 0; font-size:0.85rem; color:var(--text-soft);">${escapeHtml(applicantName)}</p>
@@ -630,13 +631,14 @@ document.addEventListener('click', async (e) => {
   if (notifyCard) {
     // Stop propagation if they clicked delete or mark read button explicitly
     if (e.target.closest('[data-notification-delete]') || e.target.closest('[data-notification-read]')) {
-      // Allow those standard blocks below to handle it
+      // Handled by blocks below
     } else {
       const notification = (isHr() ? state.notifications : state.myNotifications).find(n => n.id === notifyCard.dataset.notificationId);
       if (notification) {
         if (!notification.is_read) {
           await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
         }
+        // Launch popup with full details
         await alertModal(escapeHtml(notification.title), escapeHtml(notification.body), formatDateTime(notification.created_at));
         await syncAndRender();
       }
@@ -652,8 +654,8 @@ document.addEventListener('click', async (e) => {
     const newStatus = action === 'accept' ? 'offer_accepted' : 'offer_rejected';
     
     // Inject user's name dynamically into notes
-    const applicantName = state.profile?.full_name || 'The applicant';
-    const note = action === 'accept' ? `${applicantName} accepted the offer! Ready to be Hired.` : `${applicantName} rejected the job offer. Please Reject/Terminate the application.`;
+    const candidateName = state.profile?.full_name || 'Candidate';
+    const note = action === 'accept' ? `${candidateName} accepted the offer! Ready to be Hired.` : `${candidateName} rejected the job offer.`;
     
     await supabase.from('job_applications').update({ status: newStatus, hr_notes: note }).eq('id', appId);
     await supabase.from('application_events').insert({ job_application_id: appId, actor_id: state.session.user.id, stage: newStatus, note: note });
@@ -663,8 +665,8 @@ document.addEventListener('click', async (e) => {
       job_application_id: appId,
       channel: 'dashboard',
       type: `offer_response`,
-      title: `${applicantName} ${action === 'accept' ? 'Accepted' : 'Rejected'} Offer`,
-      body: `${applicantName} has ${action}ed the job offer. Check the Offer pipeline column.`,
+      title: `Offer Response`,
+      body: `Candidate: ${candidateName}\nRole: ${application.job_posts?.title}\nUpdate: ${candidateName} has ${action}ed the job offer.`,
       is_read: false
     });
 
@@ -705,6 +707,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  // Full Job Post Editing Form Dialog
   const jobBtn = e.target.closest('[data-job-edit], [data-job-close], [data-job-apply]');
   if (jobBtn) {
     const jobId = jobBtn.dataset.jobId;
@@ -783,8 +786,8 @@ document.addEventListener('click', async (e) => {
         user_id: application.applicant_id, 
         channel: 'dashboard', 
         type: `application_rejected`, 
-        title: `APPLICATION REJECTED: ${application.job_posts?.title}`, 
-        body: `Hello ${candidateName}, your application was rejected after review.`, 
+        title: `Application Update`, 
+        body: `Candidate: ${candidateName}\nRole: ${application.job_posts?.title}\nUpdate: Your application was rejected after review.`, 
         is_read: false 
       });
       await syncAndRender();
@@ -815,12 +818,14 @@ document.addEventListener('click', async (e) => {
     }
 
     await supabase.from('job_applications').update(updates).eq('id', application.id);
+    
+    // Inject clean structured data for the Modal format
     await supabase.from('notifications').insert({ 
       user_id: application.applicant_id, 
       channel: 'dashboard', 
       type: `application_${status}`, 
-      title: `${status.toUpperCase()} UPDATE: ${application.job_posts?.title}`, 
-      body: `Hello ${candidateName}, ${updates.hr_notes}`, 
+      title: `Application Update`, 
+      body: `Candidate: ${candidateName}\nRole: ${application.job_posts?.title}\nUpdate: ${updates.hr_notes}`, 
       is_read: false 
     });
     
