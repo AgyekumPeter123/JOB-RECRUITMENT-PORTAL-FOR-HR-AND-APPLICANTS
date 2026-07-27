@@ -17,9 +17,6 @@
         <p class="subtle">Monitor recruiting, manage candidates, and keep the workforce view in sync.</p>
       </div>
       <div class="helper-row">
-        <span class="chip" data-scroll-to="job-form-section">Recruitment</span>
-        <span class="chip" data-scroll-to="employee-list">Employees</span>
-        <span class="chip" data-scroll-to="notification-list">Notifications</span>
         <button id="generate-report-btn" class="button button-primary" style="padding: 0.45rem 1rem; font-size: 0.85rem;">Generate Report</button>
         <button id="sign-out-button" class="button button-secondary">Sign Out</button>
       </div>
@@ -81,18 +78,24 @@
 
       <div class="card wide-6">
         <div class="section-title">
-          <h3>Active Job Postings</h3>
-          <span class="chip">Public</span>
+          <div style="display:flex; align-items:center; gap: 8px;">
+            <h3>Active Job Postings</h3>
+            <span class="chip">Public</span>
+          </div>
+          <button class="collapse-toggle" data-toggle="job-list">▼</button>
         </div>
-        <div id="job-list" class="application-list"></div>
+        <div id="job-list" class="application-list" hidden></div>
       </div>
 
       <div class="card wide-12">
         <div class="section-title">
-          <h3>Applicant Pipeline</h3>
-          <span class="chip">Processes</span>
+          <div style="display:flex; align-items:center; gap: 8px;">
+            <h3>Applicant Pipeline</h3>
+            <span class="chip">Processes</span>
+          </div>
+          <button class="collapse-toggle" data-toggle="kanban-board">▼</button>
         </div>
-        <div class="kanban-board">
+        <div class="kanban-board" id="kanban-board" hidden>
           <div class="kanban-col">
             <div class="kanban-header"><span>Received</span> <span class="kanban-count" id="count-received">0</span></div>
             <div id="list-received" class="application-list" style="margin-top:0;"></div>
@@ -118,18 +121,24 @@
 
       <div class="card wide-6">
         <div class="section-title">
-          <h3>Employee Directory</h3>
-          <span class="chip">People</span>
+          <div style="display:flex; align-items:center; gap: 8px;">
+            <h3>Employee Directory</h3>
+            <span class="chip">People</span>
+          </div>
+          <button class="collapse-toggle" data-toggle="employee-list">▼</button>
         </div>
-        <div id="employee-list" class="application-list"></div>
+        <div id="employee-list" class="application-list" hidden></div>
       </div>
 
       <div class="card wide-6">
         <div class="section-title">
           <h3>System Alerts</h3>
-          <button class="button button-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;" data-action="clear-alerts">Clear All</button>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="button button-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;" data-action="clear-alerts">Clear All</button>
+            <button class="collapse-toggle" data-toggle="notification-list">▼</button>
+          </div>
         </div>
-        <div id="notification-list" class="application-list"></div>
+        <div id="notification-list" class="application-list" hidden></div>
       </div>
     </div>
   </div>

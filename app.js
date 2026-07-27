@@ -289,7 +289,6 @@ function renderApplications() {
     const candidateName = app.user_profiles?.full_name || 'Candidate';
     const initials = getInitials(candidateName);
     
-    // Hardcoded to render initials exclusively
     if (picWrap) {
       picWrap.innerHTML = `<div class="avatar-fallback">${escapeHtml(initials)}</div>`;
     }
@@ -651,6 +650,18 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  // Handle collapsible dropdown arrows
+  const toggleBtn = e.target.closest('[data-toggle]');
+  if (toggleBtn) {
+    const targetId = toggleBtn.dataset.toggle;
+    const targetEl = document.getElementById(targetId);
+    if (targetEl) {
+      targetEl.hidden = !targetEl.hidden;
+      toggleBtn.style.transform = targetEl.hidden ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+    return;
+  }
+
   const notifyCard = e.target.closest('[data-notification-id]');
   if (notifyCard) {
     if (e.target.closest('[data-notification-delete]') || e.target.closest('[data-notification-read]')) {
@@ -723,7 +734,6 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // WITHDRAWAL CONFIRMATION
   const appDeleteBtn = e.target.closest('[data-app-delete]');
   if (appDeleteBtn) {
     e.preventDefault();
@@ -841,7 +851,7 @@ document.addEventListener('click', async (e) => {
     
     if (action === 'shortlist') {
       hrNote = `${candidateName} was shortlisted.`;
-      applicantMsg = `You have been shortlisted by HR.`;
+      applicantMsg = `You have been shortlisted by our HR team.`;
     } else if (action === 'interview') {
       const result = await promptModal(`Schedule Interview`, '<label class="full-width">Date & Time <input type="datetime-local" name="datetime" required></label>');
       if (!result) return;

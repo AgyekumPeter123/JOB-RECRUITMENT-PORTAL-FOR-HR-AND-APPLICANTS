@@ -18,8 +18,6 @@
       </div>
       <div class="helper-row">
         <span class="chip" data-scroll-to="apply-section">Jobs</span>
-        <span class="chip" data-scroll-to="applicant-applications">Applications</span>
-        <span class="chip" data-scroll-to="applicant-notifications">Alerts</span>
         <button id="sign-out-button" class="button button-secondary">Sign Out</button>
       </div>
     </header>
@@ -51,18 +49,24 @@
        <div class="card">
           <div class="section-title">
             <h3>My Alerts</h3>
-            <button class="button button-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;" data-action="clear-alerts">Clear All</button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button class="button button-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;" data-action="clear-alerts">Clear All</button>
+              <button class="collapse-toggle" data-toggle="applicant-notifications">▼</button>
+            </div>
           </div>
-          <div id="applicant-notifications" class="application-list"></div>
+          <div id="applicant-notifications" class="application-list" hidden></div>
         </div>
       </div>
 
       <div class="card wide-12" style="overflow: hidden;">
         <div class="section-title">
-          <h3>My Application History</h3>
-          <span class="chip">Timeline</span>
+          <div style="display:flex; align-items:center; gap: 8px;">
+            <h3>My Application History</h3>
+            <span class="chip">Timeline</span>
+          </div>
+          <button class="collapse-toggle" data-toggle="applicant-applications">▼</button>
         </div>
-        <div id="applicant-applications" class="application-list"></div>
+        <div id="applicant-applications" class="application-list" hidden></div>
       </div>
     </div>
   </div>
