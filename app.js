@@ -597,15 +597,18 @@ async function handleApply(event) {
   let cvUrl = '', profilePictureUrl = '';
 
   try {
+    // Generate a single timestamp to be used by both uploads to prevent file path race conditions
+    const timestampId = Date.now();
+    
     if (profilePicture) {
-      const { error } = await supabase.storage.from('profile-pictures').upload(`${state.session.user.id}/${Date.now()}`, profilePicture, { upsert: true });
+      const { error } = await supabase.storage.from('profile-pictures').upload(`${state.session.user.id}/${timestampId}`, profilePicture, { upsert: true });
       if (error) throw error;
-      profilePictureUrl = supabase.storage.from('profile-pictures').getPublicUrl(`${state.session.user.id}/${Date.now()}`).data.publicUrl;
+      profilePictureUrl = supabase.storage.from('profile-pictures').getPublicUrl(`${state.session.user.id}/${timestampId}`).data.publicUrl;
     }
     if (cv) {
-      const { error } = await supabase.storage.from('cvs').upload(`${state.session.user.id}/${Date.now()}`, cv, { upsert: true });
+      const { error } = await supabase.storage.from('cvs').upload(`${state.session.user.id}/${timestampId}_cv`, cv, { upsert: true });
       if (error) throw error;
-      cvUrl = supabase.storage.from('cvs').getPublicUrl(`${state.session.user.id}/${Date.now()}`).data.publicUrl;
+      cvUrl = supabase.storage.from('cvs').getPublicUrl(`${state.session.user.id}/${timestampId}_cv`).data.publicUrl;
     }
 
     const { error } = await supabase.from('job_applications').insert({
@@ -730,7 +733,6 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // UPDATED WITHDRAWAL CONFIRMATION
   const appDeleteBtn = e.target.closest('[data-app-delete]');
   if (appDeleteBtn) {
     e.preventDefault();
@@ -815,7 +817,7 @@ document.addEventListener('click', async (e) => {
     
     const candidateName = application.user_profiles?.full_name || 'Candidate';
 
-    // Guard to prevent redundant status updates
+    // Prevent redundant status updates from duplicating notifications
     if (action !== 'reject') {
        let targetedStatus = action === 'shortlist' ? 'shortlisted' : action === 'offer' ? 'offer' : action === 'hire' ? 'hired' : 'interviewing';
        if (application.status === targetedStatus) {
@@ -871,6 +873,7 @@ document.addEventListener('click', async (e) => {
     updates.hr_notes = hrNote;
     await supabase.from('job_applications').update(updates).eq('id', application.id);
     
+    // Inject notification with "You" instead of applicant's name
     await supabase.from('notifications').insert({ 
       user_id: application.applicant_id, 
       channel: 'dashboard', 

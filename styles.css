@@ -257,7 +257,6 @@ a:hover { text-decoration: underline; }
 .compact-card { overflow-wrap: break-word; word-break: normal; max-width: 100%; box-sizing: border-box; }
 .app-meta, .job-description, .browse-description { width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
 
-/* Applicant App Card UI Fixes (Prevents Button Squishing/Overlap) */
 .app-card-header {
   display: flex;
   flex-direction: row;
@@ -289,6 +288,7 @@ a:hover { text-decoration: underline; }
 .compact-card > div[style*="display: flex"], .compact-card > div[style*="display:flex"] { flex-wrap: wrap; gap: 12px; max-width: 100%; }
 
 /* Graphical Timeline Progress Bar */
+.timeline-wrapper { width: 100%; overflow-x: hidden; }
 .timeline-container {
   display: flex; align-items: center; justify-content: space-between;
   margin: 1.5rem 0; width: 100%; position: relative;
@@ -357,6 +357,12 @@ a:hover { text-decoration: underline; }
   /* App Card Mobile Stack Fix */
   .app-card-header { flex-direction: column; align-items: stretch; gap: 1rem; }
   .app-card-actions { flex-direction: row; justify-content: flex-start; align-items: center; width: 100%; gap: 10px;}
+
+  /* Mobile Timeline Split into 2 Rows */
+  .timeline-wrapper { overflow: visible; margin: 24px 0; }
+  .timeline-container { flex-wrap: wrap; justify-content: center; gap: 24px 10px; }
+  .timeline-step { flex: 1 1 30%; text-align: center; }
+  .timeline-line { display: none; } /* Hidden on mobile to prevent grid breaks */
 
   .kanban-board { margin-left: -16px; padding-left: 16px; padding-right: 16px; width: calc(100% + 32px); }
   .modal-dialog { width: calc(100% - 24px); padding: 18px; }
