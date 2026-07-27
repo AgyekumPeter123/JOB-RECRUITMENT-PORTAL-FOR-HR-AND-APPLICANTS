@@ -42,6 +42,14 @@ const el = {
   attachCvForm: document.getElementById('attach-cv-form')
 };
 
+// Helper function to extract initials from a full name
+function getInitials(name) {
+  if (!name) return '??';
+  const parts = name.trim().split(' ');
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 function setStatus(message, kind = 'info') {
   if (!el.statusBanner) return;
   el.statusBanner.textContent = message;
@@ -112,7 +120,7 @@ function confirmModal(title, message) {
       <p style="color:var(--text-muted); margin-bottom:1.5rem; line-height:1.6;">${message}</p>
       <div style="display:flex; gap:10px;">
         <button class="button button-secondary" id="modal-cancel" style="flex:1;">Cancel</button>
-        <button class="button button-primary" id="modal-confirm" style="flex:1; background:var(--bad); border-color:var(--bad); box-shadow:none;">Confirm</button>
+        <button class="button button-primary" id="modal-confirm" style="flex:1; background:var(--bad); border-color:var(--bad); box-shadow:none;">Confirm Reject</button>
       </div>
     `;
     document.body.appendChild(dialog);
@@ -258,14 +266,17 @@ function renderApplications() {
     const card = el.applicationTemplate.content.cloneNode(true);
     const picWrap = card.querySelector('.app-profile-pic');
     
-    // Safely inject image with a robust CSS class fallback if loading fails
+    const candidateName = app.user_profiles?.full_name || 'Applicant';
+    const initials = getInitials(candidateName);
+    
+    // Injecting initials as the fallback instead of "NO PIC"
     if (picWrap) {
       picWrap.innerHTML = app.profile_picture_url ? 
-        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=&quot;avatar-fallback&quot;>No Pic</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
-        `<div class="avatar-fallback">No Pic</div>`;
+        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${initials}</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
+        `<div class="avatar-fallback">${initials}</div>`;
     }
 
-    card.querySelector('.app-name').textContent = app.user_profiles?.full_name || 'Applicant';
+    card.querySelector('.app-name').textContent = candidateName;
     card.querySelector('.app-role-name').textContent = app.job_posts?.title || 'Unknown Role';
     
     let displayStatusLabel = app.status.replace('_', ' ').toUpperCase();
@@ -368,13 +379,16 @@ function renderApplicantArea() {
       `;
     }
 
+    const applicantName = app.user_profiles?.full_name || 'Applicant';
+    const initials = getInitials(applicantName);
+
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
         <div style="display:flex; gap:1rem; align-items:center; min-width:0;">
-          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=&quot;avatar-fallback-lg&quot;>No photo</div>'" alt="Profile picture" style="width:72px; height:72px; object-fit:cover; border-radius:18px; border:1px solid #e2e8f0; background:#fff; flex:0 0 auto;" />` : '<div class="avatar-fallback-lg">No photo</div>'}
+          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback-lg\\'>${initials}</div>'" alt="Profile picture" style="width:72px; height:72px; object-fit:cover; border-radius:18px; border:1px solid #e2e8f0; background:#fff; flex:0 0 auto;" />` : `<div class="avatar-fallback-lg">${initials}</div>`}
           <div style="min-width:0;">
             <h3 style="margin:0;">${escapeHtml(app.job_posts?.title || '')}</h3>
-            <p style="margin:0.35rem 0 0; font-size:0.85rem; color:var(--text-soft);">${escapeHtml(app.user_profiles?.full_name || 'Applicant')}</p>
+            <p style="margin:0.35rem 0 0; font-size:0.85rem; color:var(--text-soft);">${escapeHtml(applicantName)}</p>
           </div>
         </div>
         <div style="display:flex; flex-direction:column; gap:0.5rem; align-items:flex-end;">
@@ -636,7 +650,10 @@ document.addEventListener('click', async (e) => {
     const appId = appRespondBtn.dataset.appId;
     const application = state.applications.find(a => a.id === appId);
     const newStatus = action === 'accept' ? 'offer_accepted' : 'offer_rejected';
-    const note = action === 'accept' ? 'Applicant accepted the offer! Ready to be Hired.' : 'Applicant rejected the job offer. Please Reject/Terminate the application.';
+    
+    // Inject user's name dynamically into notes
+    const applicantName = state.profile?.full_name || 'The applicant';
+    const note = action === 'accept' ? `${applicantName} accepted the offer! Ready to be Hired.` : `${applicantName} rejected the job offer. Please Reject/Terminate the application.`;
     
     await supabase.from('job_applications').update({ status: newStatus, hr_notes: note }).eq('id', appId);
     await supabase.from('application_events').insert({ job_application_id: appId, actor_id: state.session.user.id, stage: newStatus, note: note });
@@ -646,8 +663,8 @@ document.addEventListener('click', async (e) => {
       job_application_id: appId,
       channel: 'dashboard',
       type: `offer_response`,
-      title: `Offer ${action === 'accept' ? 'Accepted' : 'Rejected'}: ${application.job_posts?.title}`,
-      body: `${state.profile?.full_name} has ${action}ed the job offer for ${application.job_posts?.title}.`,
+      title: `${applicantName} ${action === 'accept' ? 'Accepted' : 'Rejected'} Offer`,
+      body: `${applicantName} has ${action}ed the job offer. Check the Offer pipeline column.`,
       is_read: false
     });
 
@@ -688,7 +705,6 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // Handle Full Job Edit Dialog
   const jobBtn = e.target.closest('[data-job-edit], [data-job-close], [data-job-apply]');
   if (jobBtn) {
     const jobId = jobBtn.dataset.jobId;
@@ -755,6 +771,9 @@ document.addEventListener('click', async (e) => {
     if (!application) return;
     const action = appBtn.dataset.applicationAction;
     
+    // Dynamically insert candidate names
+    const candidateName = application.user_profiles?.full_name || 'Candidate';
+    
     if (action === 'reject') {
       const isConfirmed = await confirmModal('Reject Application', 'Are you sure you want to completely remove this application from the HR pipeline?');
       if (!isConfirmed) return;
@@ -765,34 +784,34 @@ document.addEventListener('click', async (e) => {
         channel: 'dashboard', 
         type: `application_rejected`, 
         title: `APPLICATION REJECTED: ${application.job_posts?.title}`, 
-        body: `Hello ${application.user_profiles?.full_name}, your application was rejected after review.`, 
+        body: `Hello ${candidateName}, your application was rejected after review.`, 
         is_read: false 
       });
       await syncAndRender();
       return;
     }
 
-    const noteByAction = { shortlist: 'Candidate shortlisted by HR.', interview: 'Interview scheduled.', offer: 'Offer sent.', hire: 'Candidate hired.' };
+    const noteByAction = { shortlist: `${candidateName} shortlisted by HR.`, interview: `Interview scheduled for ${candidateName}.`, offer: `Offer sent to ${candidateName}.`, hire: `${candidateName} successfully hired!` };
     let status = action === 'shortlist' ? 'shortlisted' : action === 'offer' ? 'offer' : action === 'hire' ? 'hired' : 'interviewing';
     let updates = { status, updated_at: new Date().toISOString(), hr_notes: noteByAction[action] };
     
     if (action === 'interview') {
-      const result = await promptModal('Schedule Interview', '<label class="full-width">Date & Time <input type="datetime-local" name="datetime" required></label>');
+      const result = await promptModal(`Schedule Interview for ${candidateName}`, '<label class="full-width">Date & Time <input type="datetime-local" name="datetime" required></label>');
       if (!result) return;
       updates.interview_at = result.datetime;
-      updates.hr_notes = `Interview scheduled for ${formatDateTime(result.datetime)}.`;
+      updates.hr_notes = `Interview scheduled for ${candidateName} on ${formatDateTime(result.datetime)}.`;
     }
     
     if (action === 'offer') {
-      const result = await promptModal('Send Job Offer', '<label class="full-width">Salary Amount (GHS) <input type="number" name="salary" placeholder="e.g. 5000" required></label>');
+      const result = await promptModal(`Send Job Offer to ${candidateName}`, '<label class="full-width">Salary Amount (GHS) <input type="number" name="salary" placeholder="e.g. 5000" required></label>');
       if (!result) return;
       updates.salary_offered = Number(result.salary);
-      updates.hr_notes = `Offer sent to applicant: GHS ${result.salary}. Awaiting response.`;
+      updates.hr_notes = `Offer sent to ${candidateName}: GHS ${result.salary}. Awaiting response.`;
     }
 
     if (action === 'hire') {
       updates.salary_offered = application.salary_offered || 0;
-      updates.hr_notes = 'Candidate successfully hired!';
+      updates.hr_notes = `${candidateName} successfully hired!`;
     }
 
     await supabase.from('job_applications').update(updates).eq('id', application.id);
@@ -801,14 +820,14 @@ document.addEventListener('click', async (e) => {
       channel: 'dashboard', 
       type: `application_${status}`, 
       title: `${status.toUpperCase()} UPDATE: ${application.job_posts?.title}`, 
-      body: `Hello ${application.user_profiles?.full_name}, ${updates.hr_notes}`, 
+      body: `Hello ${candidateName}, ${updates.hr_notes}`, 
       is_read: false 
     });
     
     if (action === 'hire') {
       await supabase.from('employees').insert({
         user_id: application.applicant_id, job_application_id: application.id, employee_code: `EMP-${String(Date.now()).slice(-5)}`,
-        full_name: application.user_profiles?.full_name || 'Employee', department: application.job_posts?.department || '',
+        full_name: candidateName, department: application.job_posts?.department || '',
         job_title: application.job_posts?.title || '', employment_status: 'onboarding', salary: updates.salary_offered || 0,
         start_date: new Date().toISOString().slice(0, 10)
       });
