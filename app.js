@@ -254,7 +254,7 @@ function renderMetrics() {
   if (el.hrMetricJobs) el.hrMetricJobs.textContent = String(state.jobs.length);
   if (el.hrMetricApplicants) el.hrMetricApplicants.textContent = String(state.applications.length);
   if (el.hrMetricEmployees) el.hrMetricEmployees.textContent = String(state.employees.length);
-  if (el.hrMetricAlerts) el.hrMetricAlerts.textContent = String(state.notifications.filter(i => !i.is_read).length);
+  if (el.hrMetricAlerts) el.hrMetricAlerts.textContent = String(state.notifications.filter(i => !i.is_read && i.type === 'system_alert').length);
 }
 
 function renderJobCards() {
@@ -395,8 +395,18 @@ function renderNotifications() {
       `);
     });
   };
-  render(el.notificationList, state.notifications);
-  render(el.applicantNotifications, state.myNotifications);
+
+  // PRIVACY SEPARATION: HR receives ONLY System Alerts
+  if (el.notificationList) {
+    const hrAlerts = state.notifications.filter(n => n.type === 'system_alert');
+    render(el.notificationList, hrAlerts);
+  }
+
+  // PRIVACY SEPARATION: Applicants receive ONLY Application Alerts
+  if (el.applicantNotifications) {
+    const applicantAlerts = state.myNotifications.filter(n => n.type === 'application_alert' || n.type.startsWith('application_'));
+    render(el.applicantNotifications, applicantAlerts);
+  }
 }
 
 function renderApplicantArea() {
@@ -614,6 +624,17 @@ async function handleApply(event) {
   if (!supabase) return;
   const form = event.currentTarget;
   const submitBtn = form.querySelector('button[type="submit"]');
+  
+  // PREVENT SIMULTANEOUS APPLICATIONS IN THE PIPELINE
+  const activeApplication = state.myApplications.find(
+    app => app.job_post_id === form.job_id.value && app.status !== 'rejected' && app.status !== 'terminated'
+  );
+
+  if (activeApplication) {
+    setStatus("You already have an active application in the pipeline for this vacancy.", 'error');
+    return;
+  }
+
   submitBtn.disabled = true;
   submitBtn.textContent = 'Uploading...';
 
@@ -633,23 +654,37 @@ async function handleApply(event) {
       cv_url: cvUrl, status: 'received'
     });
     if (error) {
-       if (error.message.includes('duplicate key value')) throw new Error("You have already applied for this job.");
+       if (error.message.includes('duplicate key value')) throw new Error("You have an active application in progress for this role.");
        throw error;
     }
 
-    // Add a system alert for HR when a new application is submitted
+    const applicantName = state.profile?.full_name || 'Candidate';
+    const firstName = applicantName.split(' ')[0];
+    const jobTitle = form.job_name_display.value || 'vacancy';
+
+    // System Alert for HR ONLY
     const { data: hrUsers } = await supabase.from('user_profiles').select('id').eq('role', 'hr');
     if (hrUsers && hrUsers.length > 0) {
        const hrNotifications = hrUsers.map(hr => ({
          user_id: hr.id,
          channel: 'dashboard',
          type: `system_alert`,
-         title: `New Application Received`,
-         body: `${state.profile?.full_name} has applied for the ${form.job_name_display.value} vacancy.`,
+         title: `System Alert`,
+         body: `${applicantName} has applied for the ${jobTitle} vacancy.`,
          is_read: false
        }));
        await supabase.from('notifications').insert(hrNotifications);
     }
+
+    // Application Update Alert for Applicant ONLY
+    await supabase.from('notifications').insert({
+      user_id: state.session.user.id,
+      channel: 'dashboard',
+      type: `application_alert`,
+      title: `Application Update`,
+      body: `Hello ${firstName}, your application for the ${jobTitle} vacancy has been received, stay tuned for the next step.`,
+      is_read: false
+    });
 
     form.reset();
     await syncAndRender();
@@ -715,12 +750,16 @@ document.addEventListener('click', async (e) => {
     const newStatus = action === 'accept' ? 'offer_accepted' : 'offer_rejected';
     
     const applicantName = state.profile?.full_name || 'Candidate';
+    const firstName = applicantName.split(' ')[0];
     const jobTitle = application.job_posts?.title || 'vacancy';
-    const hrNote = action === 'accept' ? `${applicantName} accepted the offer for the ${jobTitle} vacancy! Ready to be Hired.` : `${applicantName} rejected the job offer for the ${jobTitle} vacancy.`;
     
+    const hrNote = action === 'accept' ? `${applicantName} has accepted the job offer for the ${jobTitle} vacancy.` : `${applicantName} has rejected the job offer for the ${jobTitle} vacancy.`;
+    const applicantMsg = action === 'accept' ? `Hello ${firstName}, you have accepted the job offer for the ${jobTitle} vacancy.` : `Hello ${firstName}, you have declined the job offer for the ${jobTitle} vacancy.`;
+
     await supabase.from('job_applications').update({ status: newStatus, hr_notes: hrNote }).eq('id', appId);
     await supabase.from('application_events').insert({ job_application_id: appId, actor_id: state.session.user.id, stage: newStatus, note: hrNote });
     
+    // System Alert for HR ONLY
     const { data: hrUsers } = await supabase.from('user_profiles').select('id').eq('role', 'hr');
     if (hrUsers && hrUsers.length > 0) {
        const hrNotifications = hrUsers.map(hr => ({
@@ -734,6 +773,17 @@ document.addEventListener('click', async (e) => {
        }));
        await supabase.from('notifications').insert(hrNotifications);
     }
+
+    // Application Update Alert for Applicant ONLY
+    await supabase.from('notifications').insert({
+      user_id: state.session.user.id,
+      job_application_id: appId,
+      channel: 'dashboard',
+      type: `application_alert`,
+      title: `Application Update`,
+      body: applicantMsg,
+      is_read: false
+    });
 
     await syncAndRender();
     setStatus(`Offer formally ${action}ed! HR has been notified.`, 'success');
@@ -873,17 +923,17 @@ document.addEventListener('click', async (e) => {
 
       await supabase.from('job_applications').delete().eq('id', application.id);
       
-      // Notify Applicant
+      // Application Update Alert for Applicant ONLY
       await supabase.from('notifications').insert({ 
         user_id: application.applicant_id, 
         channel: 'dashboard', 
-        type: `application_rejected`, 
+        type: `application_alert`, 
         title: `Application Update`, 
         body: `Hello ${firstName}, we regret to inform you that your application for the ${jobTitle} vacancy was not successful.`, 
         is_read: false 
       });
 
-      // Notify HRs
+      // System Alert for HR ONLY
       const { data: hrUsers } = await supabase.from('user_profiles').select('id').eq('role', 'hr');
       if (hrUsers && hrUsers.length > 0) {
          const hrNotifications = hrUsers.map(hr => ({
@@ -921,7 +971,7 @@ document.addEventListener('click', async (e) => {
       if (!result) return;
       updates.salary_offered = Number(result.salary);
       hrNote = `An offer of GHS ${result.salary} has been sent to ${candidateName} for the ${jobTitle} vacancy.`;
-      applicantMsg = `Hello ${firstName}, you have received a job offer of GHS ${result.salary} for the ${jobTitle} vacancy. Tap here to respond.`;
+      applicantMsg = `Hello ${firstName}, you have received a job offer of GHS ${result.salary} for the ${jobTitle} vacancy you applied for, stay tuned for the next step.`;
     } else if (action === 'hire') {
       updates.salary_offered = application.salary_offered || 0;
       hrNote = `${candidateName} has been successfully hired for the ${jobTitle} vacancy.`;
@@ -931,17 +981,17 @@ document.addEventListener('click', async (e) => {
     updates.hr_notes = hrNote;
     await supabase.from('job_applications').update(updates).eq('id', application.id);
     
-    // Notify Applicant
+    // Application Update Alert for Applicant ONLY
     await supabase.from('notifications').insert({ 
       user_id: application.applicant_id, 
       channel: 'dashboard', 
-      type: `application_${status}`, 
+      type: `application_alert`, 
       title: `Application Update`, 
       body: applicantMsg, 
       is_read: false 
     });
 
-    // Notify HRs
+    // System Alert for HR ONLY
     const { data: hrUsers } = await supabase.from('user_profiles').select('id').eq('role', 'hr');
     if (hrUsers && hrUsers.length > 0) {
        const hrNotifications = hrUsers.map(hr => ({
