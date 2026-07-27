@@ -77,6 +77,32 @@ function alertModal(title, message, dateStr) {
   });
 }
 
+function jobDetailsModal(job) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'modal-dialog';
+    dialog.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 1rem;">
+        <h3 style="margin:0; font-size:1.4rem;">${escapeHtml(job.title)}</h3>
+        <button type="button" id="modal-close-x" style="background:none; border:none; font-size:1.8rem; line-height:1; cursor:pointer; color:var(--text-soft);">&times;</button>
+      </div>
+      <p class="topline" style="margin-bottom:1rem; border-bottom:1px solid var(--surface-border); padding-bottom:1rem;">
+        ${escapeHtml(job.department || 'General')} · ${escapeHtml(job.location || 'Anywhere')} · ${escapeHtml(job.work_location || 'On-site')} · ${escapeHtml(job.employment_type)}
+      </p>
+      <div style="max-height: 50vh; overflow-y: auto; padding-right: 8px; margin-bottom: 1.5rem;">
+        <p style="white-space:pre-wrap; color:var(--text-muted); line-height:1.6; font-size:0.95rem;">${escapeHtml(job.description)}</p>
+      </div>
+      <p style="font-weight:700; margin-bottom:1rem;">Salary: GHS ${job.salary_min || 'N/A'} - ${job.salary_max || 'N/A'}</p>
+      <button class="button button-primary full-width" id="modal-apply-btn">Select & Apply</button>
+    `;
+    document.body.appendChild(dialog);
+    dialog.showModal();
+
+    dialog.querySelector('#modal-close-x').onclick = () => { dialog.close(); dialog.remove(); resolve(false); };
+    dialog.querySelector('#modal-apply-btn').onclick = () => { dialog.close(); dialog.remove(); resolve(true); };
+  });
+}
+
 function promptModal(title, inputHtml) {
   return new Promise((resolve) => {
     const dialog = document.createElement('dialog');
@@ -253,7 +279,7 @@ function renderJobCards() {
       browse.querySelector('.browse-title').textContent = job.title;
       browse.querySelector('.browse-meta').textContent = `${job.department || 'General'} · ${job.location || 'Anywhere'} · ${job.work_location || 'On-site'} · ${job.employment_type}`;
       browse.querySelector('.browse-description').textContent = job.description;
-      browse.querySelector('[data-job-apply]').dataset.jobId = job.id;
+      browse.querySelector('[data-job-view]').dataset.jobId = job.id;
       el.jobBrowseList.appendChild(browse);
     });
   }
@@ -290,9 +316,7 @@ function renderApplications() {
     const initials = getInitials(candidateName);
     
     if (picWrap) {
-      picWrap.innerHTML = app.profile_picture_url ? 
-        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${escapeHtml(initials)}</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
-        `<div class="avatar-fallback">${escapeHtml(initials)}</div>`;
+      picWrap.innerHTML = `<div class="avatar-fallback">${escapeHtml(initials)}</div>`;
     }
 
     card.querySelector('.app-name').textContent = candidateName;
@@ -400,22 +424,23 @@ function renderApplicantArea() {
 
     const applicantName = app.user_profiles?.full_name || 'Candidate';
     const initials = getInitials(applicantName);
+    const jobTitle = app.job_posts?.title || 'vacancy';
 
-    let friendlyNote = 'Your application has been received and is awaiting review.';
-    if (app.status === 'shortlisted') friendlyNote = 'You have been shortlisted by our HR team.';
-    if (app.status === 'interviewing') friendlyNote = `Your interview is scheduled for ${app.interview_at ? formatDateTime(app.interview_at) : 'soon'}.`;
-    if (app.status === 'offer') friendlyNote = `You have received a job offer of GHS ${app.salary_offered}.`;
-    if (app.status === 'hired') friendlyNote = 'Congratulations! You have been successfully hired.';
-    if (app.status === 'rejected') friendlyNote = 'We regret to inform you that your application was rejected.';
-    if (app.status === 'offer_accepted') friendlyNote = 'You accepted the job offer. We will contact you for onboarding.';
-    if (app.status === 'offer_rejected') friendlyNote = 'You declined the job offer.';
+    let friendlyNote = `Your application for the ${jobTitle} vacancy has been received and is awaiting review.`;
+    if (app.status === 'shortlisted') friendlyNote = `You have been shortlisted for the ${jobTitle} vacancy you applied for, stay tuned for the next step.`;
+    if (app.status === 'interviewing') friendlyNote = `Your interview for the ${jobTitle} vacancy is scheduled for ${app.interview_at ? formatDateTime(app.interview_at) : 'soon'}, stay tuned for the next step.`;
+    if (app.status === 'offer') friendlyNote = `You have received a job offer of GHS ${app.salary_offered} for the ${jobTitle} vacancy.`;
+    if (app.status === 'hired') friendlyNote = `Congratulations! You have been successfully hired for the ${jobTitle} vacancy.`;
+    if (app.status === 'rejected') friendlyNote = `We regret to inform you that your application for the ${jobTitle} vacancy was not successful.`;
+    if (app.status === 'offer_accepted') friendlyNote = `You accepted the job offer for the ${jobTitle} vacancy. We will contact you for onboarding.`;
+    if (app.status === 'offer_rejected') friendlyNote = `You declined the job offer for the ${jobTitle} vacancy.`;
 
     card.innerHTML = `
       <div class="app-card-header">
         <div class="app-card-identity">
-          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback-lg\\'>${escapeHtml(initials)}</div>'" alt="Profile picture" />` : `<div class="avatar-fallback-lg">${escapeHtml(initials)}</div>`}
+          <div class="avatar-fallback-lg">${escapeHtml(initials)}</div>
           <div style="min-width:0;">
-            <h3 style="margin:0; font-size:1.1rem;">${escapeHtml(app.job_posts?.title || '')}</h3>
+            <h3 style="margin:0; font-size:1.1rem;">${escapeHtml(jobTitle)}</h3>
             <p style="margin:0.2rem 0 0; font-size:0.9rem; color:var(--text-soft);">${escapeHtml(applicantName)}</p>
           </div>
         </div>
@@ -612,6 +637,20 @@ async function handleApply(event) {
        throw error;
     }
 
+    // Add a system alert for HR when a new application is submitted
+    const { data: hrUsers } = await supabase.from('user_profiles').select('id').eq('role', 'hr');
+    if (hrUsers && hrUsers.length > 0) {
+       const hrNotifications = hrUsers.map(hr => ({
+         user_id: hr.id,
+         channel: 'dashboard',
+         type: `system_alert`,
+         title: `New Application Received`,
+         body: `${state.profile?.full_name} has applied for the ${form.job_name_display.value} vacancy.`,
+         is_read: false
+       }));
+       await supabase.from('notifications').insert(hrNotifications);
+    }
+
     form.reset();
     await syncAndRender();
     setStatus('Application submitted successfully!', 'success');
@@ -676,7 +715,8 @@ document.addEventListener('click', async (e) => {
     const newStatus = action === 'accept' ? 'offer_accepted' : 'offer_rejected';
     
     const applicantName = state.profile?.full_name || 'Candidate';
-    const hrNote = action === 'accept' ? `${applicantName} accepted the offer! Ready to be Hired.` : `${applicantName} rejected the job offer.`;
+    const jobTitle = application.job_posts?.title || 'vacancy';
+    const hrNote = action === 'accept' ? `${applicantName} accepted the offer for the ${jobTitle} vacancy! Ready to be Hired.` : `${applicantName} rejected the job offer for the ${jobTitle} vacancy.`;
     
     await supabase.from('job_applications').update({ status: newStatus, hr_notes: hrNote }).eq('id', appId);
     await supabase.from('application_events').insert({ job_application_id: appId, actor_id: state.session.user.id, stage: newStatus, note: hrNote });
@@ -687,9 +727,9 @@ document.addEventListener('click', async (e) => {
          user_id: hr.id,
          job_application_id: appId,
          channel: 'dashboard',
-         type: `offer_response`,
-         title: `Offer Response`,
-         body: `Candidate: ${applicantName}\nRole: ${application.job_posts?.title}\nUpdate: The candidate has ${action}ed the offer.`,
+         type: `system_alert`,
+         title: `System Alert`,
+         body: hrNote,
          is_read: false
        }));
        await supabase.from('notifications').insert(hrNotifications);
@@ -735,15 +775,25 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  const jobBtn = e.target.closest('[data-job-edit], [data-job-close], [data-job-apply]');
+  // Handle opening the Details Modal from Applicant Dashboard
+  const viewJobBtn = e.target.closest('[data-job-view]');
+  if (viewJobBtn) {
+    const jobId = viewJobBtn.dataset.jobId;
+    const job = state.jobs.find(item => item.id === jobId);
+    if (job) {
+      const wantsToApply = await jobDetailsModal(job);
+      if (wantsToApply && el.attachCvForm) {
+        el.attachCvForm.job_id.value = jobId;
+        if (el.attachCvForm.job_name_display) el.attachCvForm.job_name_display.value = job.title;
+        el.attachCvForm.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+    return;
+  }
+
+  const jobBtn = e.target.closest('[data-job-edit], [data-job-close]');
   if (jobBtn) {
     const jobId = jobBtn.dataset.jobId;
-    if (jobBtn.hasAttribute('data-job-apply') && el.attachCvForm) {
-      const job = state.jobs.find(item => item.id === jobId);
-      el.attachCvForm.job_id.value = jobId;
-      if (el.attachCvForm.job_name_display) el.attachCvForm.job_name_display.value = job?.title || 'Selected job';
-      el.attachCvForm.scrollIntoView({ behavior: 'smooth' });
-    }
     
     if (jobBtn.hasAttribute('data-job-close')) {
       const isConfirmed = await confirmModal('Delete Job Posting', 'Are you sure you want to permanently delete this job? All associated applications will also be removed.');
@@ -806,8 +856,9 @@ document.addEventListener('click', async (e) => {
     const action = appBtn.dataset.applicationAction;
     
     const candidateName = application.user_profiles?.full_name || 'Candidate';
+    const firstName = candidateName.split(' ')[0];
+    const jobTitle = application.job_posts?.title || 'vacancy';
 
-    // Prevent redundant status updates 
     if (action !== 'reject') {
        let targetedStatus = action === 'shortlist' ? 'shortlisted' : action === 'offer' ? 'offer' : action === 'hire' ? 'hired' : 'interviewing';
        if (application.status === targetedStatus) {
@@ -821,14 +872,31 @@ document.addEventListener('click', async (e) => {
       if (!isConfirmed) return;
 
       await supabase.from('job_applications').delete().eq('id', application.id);
+      
+      // Notify Applicant
       await supabase.from('notifications').insert({ 
         user_id: application.applicant_id, 
         channel: 'dashboard', 
         type: `application_rejected`, 
         title: `Application Update`, 
-        body: `Role: ${application.job_posts?.title}\nUpdate: We regret to inform you that your application was rejected after review.`, 
+        body: `Hello ${firstName}, we regret to inform you that your application for the ${jobTitle} vacancy was not successful.`, 
         is_read: false 
       });
+
+      // Notify HRs
+      const { data: hrUsers } = await supabase.from('user_profiles').select('id').eq('role', 'hr');
+      if (hrUsers && hrUsers.length > 0) {
+         const hrNotifications = hrUsers.map(hr => ({
+           user_id: hr.id,
+           channel: 'dashboard',
+           type: `system_alert`,
+           title: `System Alert`,
+           body: `${candidateName} has been rejected for the ${jobTitle} vacancy.`,
+           is_read: false
+         }));
+         await supabase.from('notifications').insert(hrNotifications);
+      }
+      
       await syncAndRender();
       return;
     }
@@ -840,38 +908,53 @@ document.addEventListener('click', async (e) => {
     let applicantMsg = '';
     
     if (action === 'shortlist') {
-      hrNote = `${candidateName} was shortlisted.`;
-      applicantMsg = `You have been shortlisted by our HR team.`;
+      hrNote = `${candidateName} has been shortlisted for the ${jobTitle} vacancy.`;
+      applicantMsg = `Hello ${firstName}, you have been shortlisted for the ${jobTitle} vacancy you applied for, stay tuned for the next step.`;
     } else if (action === 'interview') {
       const result = await promptModal(`Schedule Interview`, '<label class="full-width">Date & Time <input type="datetime-local" name="datetime" required></label>');
       if (!result) return;
       updates.interview_at = result.datetime;
-      hrNote = `Interview scheduled for ${candidateName} on ${formatDateTime(result.datetime)}.`;
-      applicantMsg = `Your interview is scheduled for ${formatDateTime(result.datetime)}.`;
+      hrNote = `${candidateName} has been scheduled for an interview for the ${jobTitle} vacancy on ${formatDateTime(result.datetime)}.`;
+      applicantMsg = `Hello ${firstName}, your interview for the ${jobTitle} vacancy has been scheduled for ${formatDateTime(result.datetime)}, stay tuned for the next step.`;
     } else if (action === 'offer') {
       const result = await promptModal(`Send Job Offer`, '<label class="full-width">Salary Amount (GHS) <input type="number" name="salary" placeholder="e.g. 5000" required></label>');
       if (!result) return;
       updates.salary_offered = Number(result.salary);
-      hrNote = `Offer of GHS ${result.salary} sent to ${candidateName}. Awaiting response.`;
-      applicantMsg = `You have received a job offer of GHS ${result.salary}. Tap here to respond.`;
+      hrNote = `An offer of GHS ${result.salary} has been sent to ${candidateName} for the ${jobTitle} vacancy.`;
+      applicantMsg = `Hello ${firstName}, you have received a job offer of GHS ${result.salary} for the ${jobTitle} vacancy. Tap here to respond.`;
     } else if (action === 'hire') {
       updates.salary_offered = application.salary_offered || 0;
-      hrNote = `${candidateName} successfully hired!`;
-      applicantMsg = `Congratulations! You have been successfully hired!`;
+      hrNote = `${candidateName} has been successfully hired for the ${jobTitle} vacancy.`;
+      applicantMsg = `Hello ${firstName}, congratulations! You have been successfully hired for the ${jobTitle} vacancy.`;
     }
 
     updates.hr_notes = hrNote;
     await supabase.from('job_applications').update(updates).eq('id', application.id);
     
-    // Always use "You" instead of Applicant's Name for Applicant's System Alerts
+    // Notify Applicant
     await supabase.from('notifications').insert({ 
       user_id: application.applicant_id, 
       channel: 'dashboard', 
       type: `application_${status}`, 
       title: `Application Update`, 
-      body: `Role: ${application.job_posts?.title}\nUpdate: ${applicantMsg}`, 
+      body: applicantMsg, 
       is_read: false 
     });
+
+    // Notify HRs
+    const { data: hrUsers } = await supabase.from('user_profiles').select('id').eq('role', 'hr');
+    if (hrUsers && hrUsers.length > 0) {
+       const hrNotifications = hrUsers.map(hr => ({
+         user_id: hr.id,
+         job_application_id: application.id,
+         channel: 'dashboard',
+         type: `system_alert`,
+         title: `System Alert`,
+         body: hrNote,
+         is_read: false
+       }));
+       await supabase.from('notifications').insert(hrNotifications);
+    }
     
     if (action === 'hire') {
       await supabase.from('employees').insert({
