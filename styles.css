@@ -128,7 +128,8 @@ p, label { color: var(--text-muted); line-height: 1.6; }
   transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: rgba(255,255,255,0.18);
 }
 
-.dashboard-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 18px; width: 100%; }
+/* Grid Layouts with "align-items: start" to fix stretch issue */
+.dashboard-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 18px; width: 100%; align-items: start; }
 .dashboard-grid > .card, .dashboard-grid > .section-card, .dashboard-grid > .compact-card, .dashboard-grid > div { grid-column: span 12; }
 .dashboard-grid > div:has(#job-browse-list), .dashboard-grid > div:has(#notification-list), .dashboard-grid > .full-width { grid-column: span 12; }
 .dashboard-grid .wide-2 { grid-column: span 2; }
@@ -277,6 +278,9 @@ a:hover { text-decoration: underline; }
   align-items: center;
   min-width: 0;
 }
+.app-card-identity img {
+  width: 64px; height: 64px; object-fit: cover; border-radius: 16px; border: 1px solid var(--surface-border); background: #fff; flex-shrink: 0;
+}
 .app-card-actions {
   display: flex;
   flex-direction: row;
@@ -324,16 +328,6 @@ a:hover { text-decoration: underline; }
 .notification-card.read { background: rgba(255,255,255,0.4) !important; border-left: 4px solid transparent !important; opacity: 0.8; }
 .notification-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 
-#back-to-top {
-  position: fixed; bottom: 24px; right: 24px; z-index: 1000; border-radius: 50%;
-  width: 50px; height: 50px; padding: 0; display: flex; align-items: center;
-  justify-content: center; font-size: 1.4rem; font-weight: bold; opacity: 0;
-  visibility: hidden; transition: opacity var(--transition), visibility var(--transition), transform var(--transition);
-  box-shadow: var(--shadow-lg);
-}
-#back-to-top.visible { opacity: 1; visibility: visible; transform: translateY(0); }
-#back-to-top:hover { transform: translateY(-4px); }
-
 
 /* -------------------------------------------
    RESPONSIVE MEDIA QUERIES
@@ -362,15 +356,15 @@ a:hover { text-decoration: underline; }
   .app-card-actions { flex-direction: row; justify-content: flex-start; align-items: center; width: 100%; gap: 10px;}
 
   /* Mobile Timeline Split strictly into Flex Wrap to force 2 rows */
-  .timeline-wrapper { overflow: visible; margin: 24px 0; padding: 0; width: 100%; }
+  .timeline-wrapper { overflow: visible !important; margin: 24px 0; padding: 0; width: 100%; }
   .timeline-container { 
-    display: flex; 
-    flex-wrap: wrap; 
-    justify-content: center; 
-    gap: 24px 10px; 
+    display: flex !important; 
+    flex-wrap: wrap !important; 
+    justify-content: center !important; 
+    gap: 24px 10px !important; 
   }
-  .timeline-step { flex: 0 0 30%; text-align: center; }
-  .timeline-line { display: none; } /* Hidden on mobile to prevent flow breaks */
+  .timeline-step { flex: 0 0 30% !important; text-align: center; }
+  .timeline-line { display: none !important; } 
 
   .kanban-board { margin-left: -16px; padding-left: 16px; padding-right: 16px; width: calc(100% + 32px); }
   .modal-dialog { width: calc(100% - 24px); padding: 18px; }

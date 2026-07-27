@@ -290,7 +290,9 @@ function renderApplications() {
     const initials = getInitials(candidateName);
     
     if (picWrap) {
-      picWrap.innerHTML = `<div class="avatar-fallback">${escapeHtml(initials)}</div>`;
+      picWrap.innerHTML = app.profile_picture_url ? 
+        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${escapeHtml(initials)}</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
+        `<div class="avatar-fallback">${escapeHtml(initials)}</div>`;
     }
 
     card.querySelector('.app-name').textContent = candidateName;
@@ -411,7 +413,7 @@ function renderApplicantArea() {
     card.innerHTML = `
       <div class="app-card-header">
         <div class="app-card-identity">
-          <div class="avatar-fallback-lg">${escapeHtml(initials)}</div>
+          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback-lg\\'>${escapeHtml(initials)}</div>'" alt="Profile picture" />` : `<div class="avatar-fallback-lg">${escapeHtml(initials)}</div>`}
           <div style="min-width:0;">
             <h3 style="margin:0; font-size:1.1rem;">${escapeHtml(app.job_posts?.title || '')}</h3>
             <p style="margin:0.2rem 0 0; font-size:0.9rem; color:var(--text-soft);">${escapeHtml(applicantName)}</p>
@@ -619,22 +621,9 @@ async function handleApply(event) {
   }
 }
 
-window.addEventListener('scroll', () => {
-  const btn = document.getElementById('back-to-top');
-  if (btn) {
-    if (window.scrollY > 300) btn.classList.add('visible');
-    else btn.classList.remove('visible');
-  }
-});
-
 // Global Click Handlers
 document.addEventListener('click', async (e) => {
   if (!supabase) return;
-
-  if (e.target.closest('#back-to-top')) {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    return;
-  }
 
   const scrollChip = e.target.closest('[data-scroll-to]');
   if (scrollChip) {
@@ -818,6 +807,7 @@ document.addEventListener('click', async (e) => {
     
     const candidateName = application.user_profiles?.full_name || 'Candidate';
 
+    // Prevent redundant status updates 
     if (action !== 'reject') {
        let targetedStatus = action === 'shortlist' ? 'shortlisted' : action === 'offer' ? 'offer' : action === 'hire' ? 'hired' : 'interviewing';
        if (application.status === targetedStatus) {
@@ -873,6 +863,7 @@ document.addEventListener('click', async (e) => {
     updates.hr_notes = hrNote;
     await supabase.from('job_applications').update(updates).eq('id', application.id);
     
+    // Always use "You" instead of Applicant's Name for Applicant's System Alerts
     await supabase.from('notifications').insert({ 
       user_id: application.applicant_id, 
       channel: 'dashboard', 
