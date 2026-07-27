@@ -54,7 +54,23 @@ function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace
 function formatDateTime(value) { return !value ? 'Not set' : new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
 function isHr() { return state.profile?.role === 'hr'; }
 
-// Custom HTML Popup Modal system 
+// Full Alert View Modal
+function alertModal(title, message, dateStr) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'modal-dialog';
+    dialog.innerHTML = `
+      <h3 style="margin-bottom:8px; font-size:1.15rem; line-height:1.3;">${title}</h3>
+      <span class="eyebrow" style="display:block; margin-bottom:14px;">${dateStr}</span>
+      <p style="color:var(--text-muted); margin-bottom:1.5rem; line-height:1.6; font-size:0.95rem;">${message}</p>
+      <button class="button button-primary full-width" id="modal-alert-ok">Close</button>
+    `;
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    dialog.querySelector('#modal-alert-ok').onclick = () => { dialog.close(); dialog.remove(); resolve(); };
+  });
+}
+
 function promptModal(title, inputHtml) {
   return new Promise((resolve) => {
     const dialog = document.createElement('dialog');
@@ -107,7 +123,6 @@ function confirmModal(title, message) {
   });
 }
 
-// CSV Report Generator
 function generateCSVReport() {
   let csv = "DAGYES GROUP - HR SYSTEM REPORT\n\n";
   
@@ -194,7 +209,7 @@ function renderJobCards() {
     state.jobs.forEach(job => {
       const card = el.jobTemplate.content.cloneNode(true);
       card.querySelector('.job-title').textContent = job.title;
-      card.querySelector('.job-meta').textContent = `${job.department || 'General'} · ${job.location || 'Remote'}`;
+      card.querySelector('.job-meta').textContent = `${job.department || 'General'} · ${job.location || 'Anywhere'} · ${job.work_location || 'On-site'} · ${job.employment_type}`;
       card.querySelector('.job-description').textContent = job.description;
       card.querySelector('.job-salary').textContent = `Salary: ${job.salary_min || 'n/a'} - ${job.salary_max || 'n/a'}`;
       card.querySelector('[data-job-edit]').dataset.jobId = job.id;
@@ -208,7 +223,7 @@ function renderJobCards() {
     state.jobs.forEach(job => {
       const browse = el.jobBrowseTemplate.content.cloneNode(true);
       browse.querySelector('.browse-title').textContent = job.title;
-      browse.querySelector('.browse-meta').textContent = `${job.department || 'General'} · ${job.location || 'Remote'}`;
+      browse.querySelector('.browse-meta').textContent = `${job.department || 'General'} · ${job.location || 'Anywhere'} · ${job.work_location || 'On-site'} · ${job.employment_type}`;
       browse.querySelector('.browse-description').textContent = job.description;
       browse.querySelector('[data-job-apply]').dataset.jobId = job.id;
       el.jobBrowseList.appendChild(browse);
@@ -232,7 +247,6 @@ function renderApplications() {
   state.applications.forEach(app => {
     if (app.status === 'rejected') return; 
     
-    // Group sub-statuses into their main column parent
     let colStatus = app.status;
     if (app.status === 'offer_accepted' || app.status === 'offer_rejected') colStatus = 'offer';
     
@@ -243,10 +257,12 @@ function renderApplications() {
 
     const card = el.applicationTemplate.content.cloneNode(true);
     const picWrap = card.querySelector('.app-profile-pic');
+    
+    // Improved broken image handling to prevent overflow and broken icons
     if (picWrap) {
       picWrap.innerHTML = app.profile_picture_url ? 
-        `<img src="${escapeHtml(app.profile_picture_url)}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;">` : 
-        `<div style="width:42px;height:42px;border-radius:50%;background:#e2e8f0;display:grid;place-items:center;font-size:0.7rem;color:#64748b;">No Pic</div>`;
+        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div style=\\'width:42px;height:42px;border-radius:50%;background:#e2e8f0;display:grid;place-items:center;font-size:0.7rem;color:#64748b;flex-shrink:0;\\'>No Pic</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
+        `<div style="width:42px;height:42px;border-radius:50%;background:#e2e8f0;display:grid;place-items:center;font-size:0.7rem;color:#64748b;flex-shrink:0;">No Pic</div>`;
     }
 
     card.querySelector('.app-name').textContent = app.user_profiles?.full_name || 'Applicant';
@@ -260,7 +276,6 @@ function renderApplications() {
     card.querySelector('.status-pill').textContent = displayStatusLabel;
     card.querySelector('.status-pill').style = `background:#e0e7ff; ${statusColor}`;
 
-    // Updated Cover Letter inside <details> wrapper and latest note
     let highlightNoteStyle = '';
     if (app.status === 'offer_accepted' || app.status === 'offer_rejected') {
       highlightNoteStyle = 'background:rgba(37,99,235,0.06); border-left:3px solid var(--primary); padding:6px 10px; border-radius:6px;';
@@ -312,7 +327,7 @@ function renderNotifications() {
       const readActionHtml = n.is_read ? '' : `<button class="button button-secondary" style="padding:2px 8px; font-size:0.75rem;" data-notification-read="${n.id}">Mark as read</button>`;
 
       target.insertAdjacentHTML('beforeend', `
-        <article class="card notification-card ${readClass}" style="box-shadow:none; padding:12px 16px; margin-bottom:1rem;" data-notification-id="${n.id}">
+        <article class="card notification-card ${readClass}" style="box-shadow:none; padding:12px 16px; margin-bottom:1rem; cursor:pointer;" data-notification-id="${n.id}">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <strong style="color:var(--text-main);">${escapeHtml(n.title)}</strong>
             <div style="display:flex; gap:8px;">
@@ -320,7 +335,7 @@ function renderNotifications() {
               <button class="button button-secondary" style="padding:2px 8px; font-size:0.8rem; border:none; background:transparent; color:var(--bad);" title="Dismiss" data-notification-delete="${n.id}">✕</button>
             </div>
           </div>
-          <p style="font-size:0.9rem; margin-top:4px;">${escapeHtml(n.body)}</p>
+          <p style="font-size:0.9rem; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(n.body)}</p>
           <small class="eyebrow" style="display:block; margin-top:8px;">${formatDateTime(n.created_at)}</small>
         </article>
       `);
@@ -339,7 +354,6 @@ function renderApplicantArea() {
     card.className = 'card';
     card.style = "box-shadow:none; border-color:#e2e8f0; margin-bottom:1rem;";
     
-    // Check if there is an offer pending to present action buttons to applicant
     let offerActions = '';
     if (app.status === 'offer') {
       offerActions = `
@@ -357,7 +371,7 @@ function renderApplicantArea() {
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
         <div style="display:flex; gap:1rem; align-items:center; min-width:0;">
-          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" alt="Profile picture" style="width:72px; height:72px; object-fit:cover; border-radius:18px; border:1px solid #e2e8f0; background:#fff; flex:0 0 auto;" />` : '<div style="width:72px; height:72px; border-radius:18px; border:1px dashed #cbd5e1; display:grid; place-items:center; color:#64748b; font-size:0.75rem; flex:0 0 auto;">No photo</div>'}
+          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div style=\\'width:72px;height:72px;border-radius:18px;border:1px dashed #cbd5e1;display:grid;place-items:center;color:#64748b;font-size:0.75rem;flex:0 0 auto;\\'>No photo</div>'" alt="Profile picture" style="width:72px; height:72px; object-fit:cover; border-radius:18px; border:1px solid #e2e8f0; background:#fff; flex:0 0 auto;" />` : '<div style="width:72px; height:72px; border-radius:18px; border:1px dashed #cbd5e1; display:grid; place-items:center; color:#64748b; font-size:0.75rem; flex:0 0 auto;">No photo</div>'}
           <div style="min-width:0;">
             <h3 style="margin:0;">${escapeHtml(app.job_posts?.title || '')}</h3>
             <p style="margin:0.35rem 0 0; font-size:0.85rem; color:var(--text-soft);">${escapeHtml(app.user_profiles?.full_name || 'Applicant')}</p>
@@ -512,7 +526,7 @@ async function handlePostJob(event) {
   try {
     const { error } = await supabase.from('job_posts').insert({
       created_by: state.session.user.id, title: form.title.value, department: form.department.value,
-      location: form.location.value, employment_type: form.employment_type.value,
+      location: form.location.value, work_location: form.work_location.value, employment_type: form.employment_type.value,
       description: form.description.value, salary_min: form.salary_min.value || null,
       salary_max: form.salary_max.value || null, status: 'open'
     });
@@ -566,7 +580,6 @@ async function handleApply(event) {
   }
 }
 
-// Global Scrolling logic for "Back To Top"
 window.addEventListener('scroll', () => {
   const btn = document.getElementById('back-to-top');
   if (btn) {
@@ -579,13 +592,11 @@ window.addEventListener('scroll', () => {
 document.addEventListener('click', async (e) => {
   if (!supabase) return;
 
-  // Back to top click
   if (e.target.closest('#back-to-top')) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
 
-  // Header Navigation Chip scrolling
   const scrollChip = e.target.closest('[data-scroll-to]');
   if (scrollChip) {
     const targetElement = document.getElementById(scrollChip.dataset.scrollTo);
@@ -595,31 +606,48 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // Handle HR CSV Report Generation
   if (e.target.closest('#generate-report-btn')) {
     generateCSVReport();
     return;
   }
 
-  // Handle Applicant accepting/rejecting HR offers
+  // Handle Full Notification Dialog Popup
+  const notifyCard = e.target.closest('[data-notification-id]');
+  if (notifyCard) {
+    // Stop propagation if they clicked delete or mark read button explicitly
+    if (e.target.closest('[data-notification-delete]') || e.target.closest('[data-notification-read]')) {
+      // Allow those standard blocks below to handle it
+    } else {
+      const notification = (isHr() ? state.notifications : state.myNotifications).find(n => n.id === notifyCard.dataset.notificationId);
+      if (notification) {
+        if (!notification.is_read) {
+          await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
+        }
+        await alertModal(escapeHtml(notification.title), escapeHtml(notification.body), formatDateTime(notification.created_at));
+        await syncAndRender();
+      }
+      return;
+    }
+  }
+
   const appRespondBtn = e.target.closest('[data-app-respond]');
   if (appRespondBtn) {
-    const action = appRespondBtn.dataset.appRespond; // 'accept' or 'reject'
+    const action = appRespondBtn.dataset.appRespond;
     const appId = appRespondBtn.dataset.appId;
+    const application = state.applications.find(a => a.id === appId);
     const newStatus = action === 'accept' ? 'offer_accepted' : 'offer_rejected';
     const note = action === 'accept' ? 'Applicant accepted the offer! Ready to be Hired.' : 'Applicant rejected the job offer. Please Reject/Terminate the application.';
     
     await supabase.from('job_applications').update({ status: newStatus, hr_notes: note }).eq('id', appId);
     await supabase.from('application_events').insert({ job_application_id: appId, actor_id: state.session.user.id, stage: newStatus, note: note });
     
-    // System notification directly for HR team to review
     await supabase.from('notifications').insert({
       user_id: state.session.user.id,
       job_application_id: appId,
       channel: 'dashboard',
       type: `offer_response`,
-      title: `Applicant ${action === 'accept' ? 'Accepted' : 'Rejected'} Offer`,
-      body: `An applicant has ${action}ed the job offer. Check the Offer pipeline column.`,
+      title: `Offer ${action === 'accept' ? 'Accepted' : 'Rejected'}: ${application.job_posts?.title}`,
+      body: `${state.profile?.full_name} has ${action}ed the job offer for ${application.job_posts?.title}.`,
       is_read: false
     });
 
@@ -689,7 +717,14 @@ document.addEventListener('click', async (e) => {
       if (!isConfirmed) return;
 
       await supabase.from('job_applications').delete().eq('id', application.id);
-      await supabase.from('notifications').insert({ user_id: application.applicant_id, channel: 'dashboard', type: `application_rejected`, title: `APPLICATION REJECTED`, body: 'Your application was rejected after review.', is_read: false });
+      await supabase.from('notifications').insert({ 
+        user_id: application.applicant_id, 
+        channel: 'dashboard', 
+        type: `application_rejected`, 
+        title: `APPLICATION REJECTED: ${application.job_posts?.title}`, 
+        body: `Hello ${application.user_profiles?.full_name}, your application was rejected after review.`, 
+        is_read: false 
+      });
       await syncAndRender();
       return;
     }
@@ -698,17 +733,16 @@ document.addEventListener('click', async (e) => {
     let status = action === 'shortlist' ? 'shortlisted' : action === 'offer' ? 'offer' : action === 'hire' ? 'hired' : 'interviewing';
     let updates = { status, updated_at: new Date().toISOString(), hr_notes: noteByAction[action] };
     
-    // Launch Custom Modals depending on status
     if (action === 'interview') {
       const result = await promptModal('Schedule Interview', '<label class="full-width">Date & Time <input type="datetime-local" name="datetime" required></label>');
-      if (!result) return; // Halt if Cancel is pressed
+      if (!result) return;
       updates.interview_at = result.datetime;
       updates.hr_notes = `Interview scheduled for ${formatDateTime(result.datetime)}.`;
     }
     
     if (action === 'offer') {
       const result = await promptModal('Send Job Offer', '<label class="full-width">Salary Amount (GHS) <input type="number" name="salary" placeholder="e.g. 5000" required></label>');
-      if (!result) return; // Halt if Cancel is pressed
+      if (!result) return;
       updates.salary_offered = Number(result.salary);
       updates.hr_notes = `Offer sent to applicant: GHS ${result.salary}. Awaiting response.`;
     }
@@ -719,7 +753,14 @@ document.addEventListener('click', async (e) => {
     }
 
     await supabase.from('job_applications').update(updates).eq('id', application.id);
-    await supabase.from('notifications').insert({ user_id: application.applicant_id, channel: 'dashboard', type: `application_${status}`, title: `${status.toUpperCase()} update`, body: updates.hr_notes, is_read: false });
+    await supabase.from('notifications').insert({ 
+      user_id: application.applicant_id, 
+      channel: 'dashboard', 
+      type: `application_${status}`, 
+      title: `${status.toUpperCase()} UPDATE: ${application.job_posts?.title}`, 
+      body: `Hello ${application.user_profiles?.full_name}, ${updates.hr_notes}`, 
+      is_read: false 
+    });
     
     if (action === 'hire') {
       await supabase.from('employees').insert({
@@ -741,7 +782,6 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // Employees List Interaction
   const empBtn = e.target.closest('[data-employee-status], [data-employee-terminate], [data-employee-remove]');
   if (empBtn) {
     if (empBtn.hasAttribute('data-employee-status')) {

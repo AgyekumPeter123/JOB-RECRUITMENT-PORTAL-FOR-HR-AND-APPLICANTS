@@ -17,11 +17,9 @@
         <p class="subtle">Monitor recruiting, manage candidates, and keep the workforce view in sync.</p>
       </div>
       <div class="helper-row">
-        <!-- Added Navigation Tags -->
         <span class="chip" data-scroll-to="job-form-section">Recruitment</span>
         <span class="chip" data-scroll-to="employee-list">Employees</span>
         <span class="chip" data-scroll-to="notification-list">Notifications</span>
-        <!-- Added Report Button -->
         <button id="generate-report-btn" class="button button-primary" style="padding: 0.45rem 1rem; font-size: 0.85rem;">Generate Report</button>
         <button id="sign-out-button" class="button button-secondary">Sign Out</button>
       </div>
@@ -60,6 +58,13 @@
           <label class="full-width">Job Title <input type="text" name="title" required /></label>
           <label>Department <input type="text" name="department" /></label>
           <label>Location <input type="text" name="location" /></label>
+          <label>Work Setup 
+            <select name="work_location">
+              <option value="On-site">On-site</option>
+              <option value="Remote">Remote</option>
+              <option value="Hybrid">Hybrid</option>
+            </select>
+          </label>
           <label>Type 
             <select name="employment_type">
               <option value="Full-time">Full-time</option>
