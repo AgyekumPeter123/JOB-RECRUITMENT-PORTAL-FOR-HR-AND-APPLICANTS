@@ -255,6 +255,18 @@ a:hover { text-decoration: underline; }
 .modal-dialog::backdrop { background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); }
 .modal-dialog h3 { margin-top: 0; margin-bottom: 8px; }
 
+/* Avatar Profile Fallbacks (Fixes Broken Profile Pictures) */
+.avatar-fallback {
+  width: 42px; height: 42px; border-radius: 50%; background: #e2e8f0;
+  display: grid; place-items: center; font-size: 0.7rem; color: #64748b;
+  flex-shrink: 0; font-weight: 800; text-transform: uppercase;
+}
+.avatar-fallback-lg {
+  width: 72px; height: 72px; border-radius: 18px; border: 1px dashed #cbd5e1; background: #f8fafc;
+  display: grid; place-items: center; font-size: 0.75rem; color: #64748b;
+  flex-shrink: 0; font-weight: 800; text-transform: uppercase; text-align: center;
+}
+
 /* -------------------------------------------
    CARD OVERFLOW & FLEX WRAPPING FIXES 
 ---------------------------------------------*/
@@ -265,10 +277,14 @@ a:hover { text-decoration: underline; }
   box-sizing: border-box;
 }
 
-.app-meta, .job-description, .browse-description {
+/* Prevent long descriptions from breaking cards */
+.app-meta, .job-description, .browse-description, .employee-meta {
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 4; 
+  -webkit-box-orient: vertical;
 }
 
 .compact-card .button, 

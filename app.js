@@ -112,7 +112,7 @@ function confirmModal(title, message) {
       <p style="color:var(--text-muted); margin-bottom:1.5rem; line-height:1.6;">${message}</p>
       <div style="display:flex; gap:10px;">
         <button class="button button-secondary" id="modal-cancel" style="flex:1;">Cancel</button>
-        <button class="button button-primary" id="modal-confirm" style="flex:1; background:var(--bad); border-color:var(--bad); box-shadow:none;">Confirm Reject</button>
+        <button class="button button-primary" id="modal-confirm" style="flex:1; background:var(--bad); border-color:var(--bad); box-shadow:none;">Confirm</button>
       </div>
     `;
     document.body.appendChild(dialog);
@@ -258,11 +258,11 @@ function renderApplications() {
     const card = el.applicationTemplate.content.cloneNode(true);
     const picWrap = card.querySelector('.app-profile-pic');
     
-    // Improved broken image handling to prevent overflow and broken icons
+    // Safely inject image with a robust CSS class fallback if loading fails
     if (picWrap) {
       picWrap.innerHTML = app.profile_picture_url ? 
-        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div style=\\'width:42px;height:42px;border-radius:50%;background:#e2e8f0;display:grid;place-items:center;font-size:0.7rem;color:#64748b;flex-shrink:0;\\'>No Pic</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
-        `<div style="width:42px;height:42px;border-radius:50%;background:#e2e8f0;display:grid;place-items:center;font-size:0.7rem;color:#64748b;flex-shrink:0;">No Pic</div>`;
+        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=&quot;avatar-fallback&quot;>No Pic</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
+        `<div class="avatar-fallback">No Pic</div>`;
     }
 
     card.querySelector('.app-name').textContent = app.user_profiles?.full_name || 'Applicant';
@@ -289,7 +289,7 @@ function renderApplications() {
       </div>
       <details style="margin-top:0.6rem; background:rgba(0,0,0,0.03); padding:8px 10px; border-radius:10px; overflow:hidden;">
         <summary style="cursor:pointer; font-weight:700; color:var(--text-main);">View Cover Letter</summary>
-        <div style="margin-top:6px; white-space:pre-wrap; overflow-x:hidden; word-break:break-word; font-size:0.8rem; color:var(--text-soft);">${escapeHtml(app.cover_letter || 'No cover letter provided.')}</div>
+        <div style="margin-top:6px; white-space:pre-wrap; overflow-wrap:anywhere; word-break:normal; font-size:0.8rem; color:var(--text-soft);">${escapeHtml(app.cover_letter || 'No cover letter provided.')}</div>
       </details>
     `;
     card.querySelectorAll('button').forEach(btn => btn.closest('article').dataset.applicationId = app.id);
@@ -371,7 +371,7 @@ function renderApplicantArea() {
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
         <div style="display:flex; gap:1rem; align-items:center; min-width:0;">
-          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div style=\\'width:72px;height:72px;border-radius:18px;border:1px dashed #cbd5e1;display:grid;place-items:center;color:#64748b;font-size:0.75rem;flex:0 0 auto;\\'>No photo</div>'" alt="Profile picture" style="width:72px; height:72px; object-fit:cover; border-radius:18px; border:1px solid #e2e8f0; background:#fff; flex:0 0 auto;" />` : '<div style="width:72px; height:72px; border-radius:18px; border:1px dashed #cbd5e1; display:grid; place-items:center; color:#64748b; font-size:0.75rem; flex:0 0 auto;">No photo</div>'}
+          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=&quot;avatar-fallback-lg&quot;>No photo</div>'" alt="Profile picture" style="width:72px; height:72px; object-fit:cover; border-radius:18px; border:1px solid #e2e8f0; background:#fff; flex:0 0 auto;" />` : '<div class="avatar-fallback-lg">No photo</div>'}
           <div style="min-width:0;">
             <h3 style="margin:0;">${escapeHtml(app.job_posts?.title || '')}</h3>
             <p style="margin:0.35rem 0 0; font-size:0.85rem; color:var(--text-soft);">${escapeHtml(app.user_profiles?.full_name || 'Applicant')}</p>
@@ -688,6 +688,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  // Handle Full Job Edit Dialog
   const jobBtn = e.target.closest('[data-job-edit], [data-job-close], [data-job-apply]');
   if (jobBtn) {
     const jobId = jobBtn.dataset.jobId;
@@ -697,12 +698,54 @@ document.addEventListener('click', async (e) => {
       if (el.attachCvForm.job_name_display) el.attachCvForm.job_name_display.value = job?.title || 'Selected job';
       el.attachCvForm.scrollIntoView({ behavior: 'smooth' });
     }
-    if (jobBtn.hasAttribute('data-job-close')) await supabase.from('job_posts').update({ status: 'closed' }).eq('id', jobId);
-    if (jobBtn.hasAttribute('data-job-edit')) {
-      const title = window.prompt('Edit job title');
-      if (title) await supabase.from('job_posts').update({ title }).eq('id', jobId);
+    
+    if (jobBtn.hasAttribute('data-job-close')) {
+      await supabase.from('job_posts').update({ status: 'closed' }).eq('id', jobId);
+      await syncAndRender();
     }
-    await syncAndRender();
+    
+    if (jobBtn.hasAttribute('data-job-edit')) {
+      const job = state.jobs.find(item => item.id === jobId);
+      if (!job) return;
+      
+      const result = await promptModal('Edit Job Posting', `
+        <label class="full-width">Job Title <input type="text" name="title" value="${escapeHtml(job.title)}" required /></label>
+        <label>Department <input type="text" name="department" value="${escapeHtml(job.department || '')}" /></label>
+        <label>Location <input type="text" name="location" value="${escapeHtml(job.location || '')}" /></label>
+        <label>Work Setup 
+          <select name="work_location">
+            <option value="On-site" ${job.work_location === 'On-site' ? 'selected' : ''}>On-site</option>
+            <option value="Remote" ${job.work_location === 'Remote' ? 'selected' : ''}>Remote</option>
+            <option value="Hybrid" ${job.work_location === 'Hybrid' ? 'selected' : ''}>Hybrid</option>
+          </select>
+        </label>
+        <label>Type 
+          <select name="employment_type">
+            <option value="Full-time" ${job.employment_type === 'Full-time' ? 'selected' : ''}>Full-time</option>
+            <option value="Part-time" ${job.employment_type === 'Part-time' ? 'selected' : ''}>Part-time</option>
+            <option value="Contract" ${job.employment_type === 'Contract' ? 'selected' : ''}>Contract</option>
+          </select>
+        </label>
+        <label>Min Salary <input type="number" name="salary_min" value="${job.salary_min || ''}" /></label>
+        <label>Max Salary <input type="number" name="salary_max" value="${job.salary_max || ''}" /></label>
+        <label class="full-width">Description <textarea name="description" required rows="4">${escapeHtml(job.description || '')}</textarea></label>
+      `);
+      
+      if (result) {
+        await supabase.from('job_posts').update({
+          title: result.title,
+          department: result.department,
+          location: result.location,
+          work_location: result.work_location,
+          employment_type: result.employment_type,
+          salary_min: result.salary_min || null,
+          salary_max: result.salary_max || null,
+          description: result.description
+        }).eq('id', jobId);
+        await syncAndRender();
+        setStatus('Job updated successfully.', 'success');
+      }
+    }
     return;
   }
 
