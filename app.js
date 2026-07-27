@@ -289,9 +289,10 @@ function renderApplications() {
     const candidateName = app.user_profiles?.full_name || 'Candidate';
     const initials = getInitials(candidateName);
     
+    // Improved Image Render: Uses straight img tag allowing CSS to dictate structure, falls back to initials
     if (picWrap) {
       picWrap.innerHTML = app.profile_picture_url ? 
-        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${escapeHtml(initials)}</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
+        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=&quot;avatar-fallback&quot;>${escapeHtml(initials)}</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
         `<div class="avatar-fallback">${escapeHtml(initials)}</div>`;
     }
 
@@ -401,11 +402,20 @@ function renderApplicantArea() {
     const applicantName = app.user_profiles?.full_name || 'Candidate';
     const initials = getInitials(applicantName);
 
-    // Completely restuctured Mobile-Safe App Card HTML
+    // Convert internal HR note to a friendly message for the applicant
+    let friendlyNote = 'Your application has been received and is awaiting review.';
+    if (app.status === 'shortlisted') friendlyNote = 'You have been shortlisted by our HR team.';
+    if (app.status === 'interviewing') friendlyNote = `Your interview is scheduled for ${app.interview_at ? formatDateTime(app.interview_at) : 'soon'}.`;
+    if (app.status === 'offer') friendlyNote = `You have received a job offer of GHS ${app.salary_offered}.`;
+    if (app.status === 'hired') friendlyNote = 'Congratulations! You have been successfully hired.';
+    if (app.status === 'rejected') friendlyNote = 'We regret to inform you that your application was rejected.';
+    if (app.status === 'offer_accepted') friendlyNote = 'You accepted the job offer. We will contact you for onboarding.';
+    if (app.status === 'offer_rejected') friendlyNote = 'You declined the job offer.';
+
     card.innerHTML = `
       <div class="app-card-header">
         <div class="app-card-identity">
-          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback-lg\\'>${escapeHtml(initials)}</div>'" alt="Profile picture" />` : `<div class="avatar-fallback-lg">${escapeHtml(initials)}</div>`}
+          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=&quot;avatar-fallback-lg&quot;>${escapeHtml(initials)}</div>'" alt="Profile picture" />` : `<div class="avatar-fallback-lg">${escapeHtml(initials)}</div>`}
           <div style="min-width:0;">
             <h3 style="margin:0; font-size:1.1rem;">${escapeHtml(app.job_posts?.title || '')}</h3>
             <p style="margin:0.2rem 0 0; font-size:0.9rem; color:var(--text-soft);">${escapeHtml(applicantName)}</p>
@@ -420,7 +430,7 @@ function renderApplicantArea() {
       ${buildTimeline(app.status)}
       
       <div style="background:rgba(0,0,0,0.02); border-radius:12px; padding:12px; margin-top:12px;">
-        <p style="margin:0; font-size:0.9rem; color:var(--text-muted);"><strong>Latest Note:</strong> ${escapeHtml(app.hr_notes || 'Awaiting review.')}</p>
+        <p style="margin:0; font-size:0.9rem; color:var(--text-muted);"><strong>Latest Note:</strong> ${escapeHtml(friendlyNote)}</p>
       </div>
       ${offerActions}
     `;
@@ -723,9 +733,13 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  // UPDATED WITHDRAWAL CONFIRMATION
   const appDeleteBtn = e.target.closest('[data-app-delete]');
   if (appDeleteBtn) {
-    if (!window.confirm("Are you sure you want to withdraw and delete this application?")) return;
+    e.preventDefault();
+    const isConfirmed = await confirmModal('Withdraw Application', 'Are you sure you want to withdraw your application? This action cannot be undone.');
+    if (!isConfirmed) return;
+    
     await supabase.from('job_applications').delete().eq('id', appDeleteBtn.dataset.appDelete);
     await syncAndRender();
     setStatus('Application withdrawn.', 'success');
@@ -823,9 +837,11 @@ document.addEventListener('click', async (e) => {
 
     let status = action === 'shortlist' ? 'shortlisted' : action === 'offer' ? 'offer' : action === 'hire' ? 'hired' : 'interviewing';
     let updates = { status, updated_at: new Date().toISOString() };
+    
     let hrNote = '';
     let applicantMsg = '';
     
+    // Set separate strings for the HR dashboard note vs what the Applicant is notified with
     if (action === 'shortlist') {
       hrNote = `${candidateName} was shortlisted.`;
       applicantMsg = `You have been shortlisted by HR.`;
@@ -850,6 +866,7 @@ document.addEventListener('click', async (e) => {
     updates.hr_notes = hrNote;
     await supabase.from('job_applications').update(updates).eq('id', application.id);
     
+    // Inject the 'You' applicantMsg safely into the notification
     await supabase.from('notifications').insert({ 
       user_id: application.applicant_id, 
       channel: 'dashboard', 
