@@ -130,7 +130,7 @@ function buildTimeline(status) {
   if (status === 'offer_accepted' || status === 'offer_rejected') currentIndex = 3; 
   if (status === 'rejected') currentIndex = -1;
 
-  let html = '<div class="timeline-container">';
+  let html = '<div class="timeline-wrapper"><div class="timeline-container">';
   stages.forEach((stage, idx) => {
     let stepClass = 'timeline-step';
     if (currentIndex >= idx) stepClass += ' completed';
@@ -153,7 +153,7 @@ function buildTimeline(status) {
       html += `<div class="${lineClass}"></div>`;
     }
   });
-  html += '</div>';
+  html += '</div></div>';
   return html;
 }
 
@@ -289,10 +289,9 @@ function renderApplications() {
     const candidateName = app.user_profiles?.full_name || 'Candidate';
     const initials = getInitials(candidateName);
     
-    // Improved Image Render: Uses straight img tag allowing CSS to dictate structure, falls back to initials
     if (picWrap) {
       picWrap.innerHTML = app.profile_picture_url ? 
-        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=&quot;avatar-fallback&quot;>${escapeHtml(initials)}</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
+        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${escapeHtml(initials)}</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
         `<div class="avatar-fallback">${escapeHtml(initials)}</div>`;
     }
 
@@ -383,7 +382,7 @@ function renderApplicantArea() {
   state.myApplications.forEach(app => {
     const card = document.createElement('article');
     card.className = 'card';
-    card.style = "box-shadow:none; border-color:#e2e8f0; margin-bottom:1rem;";
+    card.style = "box-shadow:none; border-color:#e2e8f0; margin-bottom:1rem; overflow:hidden;";
     
     let offerActions = '';
     if (app.status === 'offer') {
@@ -402,7 +401,6 @@ function renderApplicantArea() {
     const applicantName = app.user_profiles?.full_name || 'Candidate';
     const initials = getInitials(applicantName);
 
-    // Convert internal HR note to a friendly message for the applicant
     let friendlyNote = 'Your application has been received and is awaiting review.';
     if (app.status === 'shortlisted') friendlyNote = 'You have been shortlisted by our HR team.';
     if (app.status === 'interviewing') friendlyNote = `Your interview is scheduled for ${app.interview_at ? formatDateTime(app.interview_at) : 'soon'}.`;
@@ -415,7 +413,7 @@ function renderApplicantArea() {
     card.innerHTML = `
       <div class="app-card-header">
         <div class="app-card-identity">
-          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=&quot;avatar-fallback-lg&quot;>${escapeHtml(initials)}</div>'" alt="Profile picture" />` : `<div class="avatar-fallback-lg">${escapeHtml(initials)}</div>`}
+          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback-lg\\'>${escapeHtml(initials)}</div>'" alt="Profile picture" />` : `<div class="avatar-fallback-lg">${escapeHtml(initials)}</div>`}
           <div style="min-width:0;">
             <h3 style="margin:0; font-size:1.1rem;">${escapeHtml(app.job_posts?.title || '')}</h3>
             <p style="margin:0.2rem 0 0; font-size:0.9rem; color:var(--text-soft);">${escapeHtml(applicantName)}</p>
@@ -663,7 +661,7 @@ document.addEventListener('click', async (e) => {
   const notifyCard = e.target.closest('[data-notification-id]');
   if (notifyCard) {
     if (e.target.closest('[data-notification-delete]') || e.target.closest('[data-notification-read]')) {
-      // Ignored here, handled by specific handlers below
+      // Ignored here
     } else {
       const notification = (isHr() ? state.notifications : state.myNotifications).find(n => n.id === notifyCard.dataset.notificationId);
       if (notification) {
@@ -690,7 +688,6 @@ document.addEventListener('click', async (e) => {
     await supabase.from('job_applications').update({ status: newStatus, hr_notes: hrNote }).eq('id', appId);
     await supabase.from('application_events').insert({ job_application_id: appId, actor_id: state.session.user.id, stage: newStatus, note: hrNote });
     
-    // Notify HR team members directly
     const { data: hrUsers } = await supabase.from('user_profiles').select('id').eq('role', 'hr');
     if (hrUsers && hrUsers.length > 0) {
        const hrNotifications = hrUsers.map(hr => ({
@@ -817,6 +814,15 @@ document.addEventListener('click', async (e) => {
     const action = appBtn.dataset.applicationAction;
     
     const candidateName = application.user_profiles?.full_name || 'Candidate';
+
+    // Guard to prevent redundant status updates
+    if (action !== 'reject') {
+       let targetedStatus = action === 'shortlist' ? 'shortlisted' : action === 'offer' ? 'offer' : action === 'hire' ? 'hired' : 'interviewing';
+       if (application.status === targetedStatus) {
+          setStatus(`Application is already marked as ${targetedStatus}.`, 'info');
+          return;
+       }
+    }
     
     if (action === 'reject') {
       const isConfirmed = await confirmModal('Reject Application', 'Are you sure you want to completely remove this application from the HR pipeline?');
@@ -841,7 +847,6 @@ document.addEventListener('click', async (e) => {
     let hrNote = '';
     let applicantMsg = '';
     
-    // Set separate strings for the HR dashboard note vs what the Applicant is notified with
     if (action === 'shortlist') {
       hrNote = `${candidateName} was shortlisted.`;
       applicantMsg = `You have been shortlisted by HR.`;
@@ -866,7 +871,6 @@ document.addEventListener('click', async (e) => {
     updates.hr_notes = hrNote;
     await supabase.from('job_applications').update(updates).eq('id', application.id);
     
-    // Inject the 'You' applicantMsg safely into the notification
     await supabase.from('notifications').insert({ 
       user_id: application.applicant_id, 
       channel: 'dashboard', 
