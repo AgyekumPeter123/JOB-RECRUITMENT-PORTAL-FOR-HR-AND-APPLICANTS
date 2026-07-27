@@ -42,7 +42,6 @@ const el = {
   attachCvForm: document.getElementById('attach-cv-form')
 };
 
-// Helper function to extract initials from a full name
 function getInitials(name) {
   if (!name) return '??';
   const parts = name.trim().split(' ');
@@ -62,7 +61,6 @@ function escapeHtml(value) { return String(value).replace(/&/g, '&amp;').replace
 function formatDateTime(value) { return !value ? 'Not set' : new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
 function isHr() { return state.profile?.role === 'hr'; }
 
-// Full Alert View Modal (Now supports line breaks for clean reading)
 function alertModal(title, message, dateStr) {
   return new Promise((resolve) => {
     const dialog = document.createElement('dialog');
@@ -96,12 +94,7 @@ function promptModal(title, inputHtml) {
     document.body.appendChild(dialog);
     dialog.showModal();
 
-    dialog.querySelector('#modal-cancel').onclick = () => {
-      dialog.close();
-      dialog.remove();
-      resolve(null);
-    };
-
+    dialog.querySelector('#modal-cancel').onclick = () => { dialog.close(); dialog.remove(); resolve(null); };
     dialog.querySelector('form').onsubmit = (e) => {
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData.entries());
@@ -120,7 +113,7 @@ function confirmModal(title, message) {
       <p style="color:var(--text-muted); margin-bottom:1.5rem; line-height:1.6;">${message}</p>
       <div style="display:flex; gap:10px;">
         <button class="button button-secondary" id="modal-cancel" style="flex:1;">Cancel</button>
-        <button class="button button-primary" id="modal-confirm" style="flex:1; background:var(--bad); border-color:var(--bad); box-shadow:none;">Confirm Reject</button>
+        <button class="button button-primary" id="modal-confirm" style="flex:1; background:var(--bad); border-color:var(--bad); box-shadow:none;">Confirm</button>
       </div>
     `;
     document.body.appendChild(dialog);
@@ -131,20 +124,48 @@ function confirmModal(title, message) {
   });
 }
 
+function buildTimeline(status) {
+  const stages = ['received', 'shortlisted', 'interviewing', 'offer', 'hired'];
+  let currentIndex = stages.indexOf(status);
+  if (status === 'offer_accepted' || status === 'offer_rejected') currentIndex = 3; 
+  if (status === 'rejected') currentIndex = -1;
+
+  let html = '<div class="timeline-container">';
+  stages.forEach((stage, idx) => {
+    let stepClass = 'timeline-step';
+    if (currentIndex >= idx) stepClass += ' completed';
+    if (currentIndex === idx) stepClass += ' active';
+    if (status === 'rejected' && idx === 0) stepClass += ' completed'; 
+    if (status === 'rejected' && idx === 1) stepClass += ' rejected';
+
+    let label = stage === 'interviewing' ? 'Interview' : stage.charAt(0).toUpperCase() + stage.slice(1);
+    
+    html += `
+      <div class="${stepClass}">
+        <div class="timeline-dot"></div>
+        <span class="timeline-label">${label}</span>
+      </div>
+    `;
+    if (idx < stages.length - 1) {
+      let lineClass = 'timeline-line';
+      if (currentIndex > idx) lineClass += ' completed';
+      if (status === 'rejected' && idx === 0) lineClass += ' rejected';
+      html += `<div class="${lineClass}"></div>`;
+    }
+  });
+  html += '</div>';
+  return html;
+}
+
 function generateCSVReport() {
   let csv = "DAGYES GROUP - HR SYSTEM REPORT\n\n";
-  
   csv += "--- DASHBOARD METRICS ---\n";
   csv += `Open Jobs,${state.jobs.length}\n`;
   csv += `Total Applications,${state.applications.length}\n`;
   csv += `Active Employees,${state.employees.length}\n\n`;
-
   csv += "--- CURRENT EMPLOYEES ---\n";
   csv += "Employee Code,Name,Role,Department,Status,Salary (GHS)\n";
-  state.employees.forEach(e => {
-    csv += `"${e.employee_code}","${e.full_name}","${e.job_title}","${e.department}","${e.employment_status}",${e.salary}\n`;
-  });
-  
+  state.employees.forEach(e => { csv += `"${e.employee_code}","${e.full_name}","${e.job_title}","${e.department}","${e.employment_status}",${e.salary}\n`; });
   csv += "\n--- APPLICANT PIPELINE ---\n";
   csv += "Applicant Name,Role Applied For,Pipeline Status,Interview Date,Offered Salary (GHS)\n";
   state.applications.forEach(a => {
@@ -152,7 +173,6 @@ function generateCSVReport() {
     const role = a.job_posts?.title || 'Unknown';
     csv += `"${name}","${role}","${a.status}","${a.interview_at || 'None'}",${a.salary_offered || 'None'}\n`;
   });
-
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -269,7 +289,6 @@ function renderApplications() {
     const candidateName = app.user_profiles?.full_name || 'Candidate';
     const initials = getInitials(candidateName);
     
-    // Generates the person's initials if there is no image
     if (picWrap) {
       picWrap.innerHTML = app.profile_picture_url ? 
         `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${escapeHtml(initials)}</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
@@ -337,7 +356,6 @@ function renderNotifications() {
       const readClass = n.is_read ? 'read' : 'unread';
       const readActionHtml = n.is_read ? '' : `<button class="button button-secondary" style="padding:2px 8px; font-size:0.75rem;" data-notification-read="${n.id}">Mark as read</button>`;
 
-      // The list card now only shows the Title, masking the details until clicked
       target.insertAdjacentHTML('beforeend', `
         <article class="card notification-card ${readClass}" style="box-shadow:none; padding:12px 16px; margin-bottom:1rem; cursor:pointer;" data-notification-id="${n.id}">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -383,21 +401,27 @@ function renderApplicantArea() {
     const applicantName = app.user_profiles?.full_name || 'Candidate';
     const initials = getInitials(applicantName);
 
+    // Completely restuctured Mobile-Safe App Card HTML
     card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
-        <div style="display:flex; gap:1rem; align-items:center; min-width:0;">
-          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback-lg\\'>${escapeHtml(initials)}</div>'" alt="Profile picture" style="width:72px; height:72px; object-fit:cover; border-radius:18px; border:1px solid #e2e8f0; background:#fff; flex:0 0 auto;" />` : `<div class="avatar-fallback-lg">${escapeHtml(initials)}</div>`}
+      <div class="app-card-header">
+        <div class="app-card-identity">
+          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback-lg\\'>${escapeHtml(initials)}</div>'" alt="Profile picture" />` : `<div class="avatar-fallback-lg">${escapeHtml(initials)}</div>`}
           <div style="min-width:0;">
-            <h3 style="margin:0;">${escapeHtml(app.job_posts?.title || '')}</h3>
-            <p style="margin:0.35rem 0 0; font-size:0.85rem; color:var(--text-soft);">${escapeHtml(applicantName)}</p>
+            <h3 style="margin:0; font-size:1.1rem;">${escapeHtml(app.job_posts?.title || '')}</h3>
+            <p style="margin:0.2rem 0 0; font-size:0.9rem; color:var(--text-soft);">${escapeHtml(applicantName)}</p>
           </div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:0.5rem; align-items:flex-end;">
+        <div class="app-card-actions">
           <span class="status-pill" style="background:#e0e7ff; color:var(--primary);">${escapeHtml(app.status.replace('_',' ').toUpperCase())}</span>
-          <button class="button button-secondary" style="padding:0.2rem 0.6rem; font-size:0.75rem; color:var(--bad);" data-app-delete="${app.id}">Withdraw</button>
+          <button class="button button-secondary" style="padding:0.3rem 0.8rem; font-size:0.8rem; color:var(--bad);" data-app-delete="${app.id}">Withdraw</button>
         </div>
       </div>
-      <p style="margin-top:0.5rem; font-size:0.9rem;"><strong>Notes:</strong> ${escapeHtml(app.hr_notes || 'Under review')}</p>
+      
+      ${buildTimeline(app.status)}
+      
+      <div style="background:rgba(0,0,0,0.02); border-radius:12px; padding:12px; margin-top:12px;">
+        <p style="margin:0; font-size:0.9rem; color:var(--text-muted);"><strong>Latest Note:</strong> ${escapeHtml(app.hr_notes || 'Awaiting review.')}</p>
+      </div>
       ${offerActions}
     `;
     el.applicantApplications.appendChild(card);
@@ -626,19 +650,16 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // Handle Full Notification Dialog Popup
   const notifyCard = e.target.closest('[data-notification-id]');
   if (notifyCard) {
-    // Stop propagation if they clicked delete or mark read button explicitly
     if (e.target.closest('[data-notification-delete]') || e.target.closest('[data-notification-read]')) {
-      // Handled by blocks below
+      // Ignored here, handled by specific handlers below
     } else {
       const notification = (isHr() ? state.notifications : state.myNotifications).find(n => n.id === notifyCard.dataset.notificationId);
       if (notification) {
         if (!notification.is_read) {
           await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
         }
-        // Launch popup with full details
         await alertModal(escapeHtml(notification.title), escapeHtml(notification.body), formatDateTime(notification.created_at));
         await syncAndRender();
       }
@@ -653,22 +674,26 @@ document.addEventListener('click', async (e) => {
     const application = state.applications.find(a => a.id === appId);
     const newStatus = action === 'accept' ? 'offer_accepted' : 'offer_rejected';
     
-    // Inject user's name dynamically into notes
-    const candidateName = state.profile?.full_name || 'Candidate';
-    const note = action === 'accept' ? `${candidateName} accepted the offer! Ready to be Hired.` : `${candidateName} rejected the job offer.`;
+    const applicantName = state.profile?.full_name || 'Candidate';
+    const hrNote = action === 'accept' ? `${applicantName} accepted the offer! Ready to be Hired.` : `${applicantName} rejected the job offer.`;
     
-    await supabase.from('job_applications').update({ status: newStatus, hr_notes: note }).eq('id', appId);
-    await supabase.from('application_events').insert({ job_application_id: appId, actor_id: state.session.user.id, stage: newStatus, note: note });
+    await supabase.from('job_applications').update({ status: newStatus, hr_notes: hrNote }).eq('id', appId);
+    await supabase.from('application_events').insert({ job_application_id: appId, actor_id: state.session.user.id, stage: newStatus, note: hrNote });
     
-    await supabase.from('notifications').insert({
-      user_id: state.session.user.id,
-      job_application_id: appId,
-      channel: 'dashboard',
-      type: `offer_response`,
-      title: `Offer Response`,
-      body: `Candidate: ${candidateName}\nRole: ${application.job_posts?.title}\nUpdate: ${candidateName} has ${action}ed the job offer.`,
-      is_read: false
-    });
+    // Notify HR team members directly
+    const { data: hrUsers } = await supabase.from('user_profiles').select('id').eq('role', 'hr');
+    if (hrUsers && hrUsers.length > 0) {
+       const hrNotifications = hrUsers.map(hr => ({
+         user_id: hr.id,
+         job_application_id: appId,
+         channel: 'dashboard',
+         type: `offer_response`,
+         title: `Offer Response`,
+         body: `Candidate: ${applicantName}\nRole: ${application.job_posts?.title}\nUpdate: The candidate has ${action}ed the offer.`,
+         is_read: false
+       }));
+       await supabase.from('notifications').insert(hrNotifications);
+    }
 
     await syncAndRender();
     setStatus(`Offer formally ${action}ed! HR has been notified.`, 'success');
@@ -707,7 +732,6 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
-  // Full Job Post Editing Form Dialog
   const jobBtn = e.target.closest('[data-job-edit], [data-job-close], [data-job-apply]');
   if (jobBtn) {
     const jobId = jobBtn.dataset.jobId;
@@ -719,8 +743,12 @@ document.addEventListener('click', async (e) => {
     }
     
     if (jobBtn.hasAttribute('data-job-close')) {
-      await supabase.from('job_posts').update({ status: 'closed' }).eq('id', jobId);
-      await syncAndRender();
+      const isConfirmed = await confirmModal('Delete Job Posting', 'Are you sure you want to permanently delete this job? All associated applications will also be removed.');
+      if (isConfirmed) {
+        await supabase.from('job_posts').delete().eq('id', jobId);
+        await syncAndRender();
+        setStatus('Job deleted successfully.', 'success');
+      }
     }
     
     if (jobBtn.hasAttribute('data-job-edit')) {
@@ -774,7 +802,6 @@ document.addEventListener('click', async (e) => {
     if (!application) return;
     const action = appBtn.dataset.applicationAction;
     
-    // Dynamically insert candidate names
     const candidateName = application.user_profiles?.full_name || 'Candidate';
     
     if (action === 'reject') {
@@ -787,45 +814,48 @@ document.addEventListener('click', async (e) => {
         channel: 'dashboard', 
         type: `application_rejected`, 
         title: `Application Update`, 
-        body: `Candidate: ${candidateName}\nRole: ${application.job_posts?.title}\nUpdate: Your application was rejected after review.`, 
+        body: `Role: ${application.job_posts?.title}\nUpdate: We regret to inform you that your application was rejected after review.`, 
         is_read: false 
       });
       await syncAndRender();
       return;
     }
 
-    const noteByAction = { shortlist: `${candidateName} shortlisted by HR.`, interview: `Interview scheduled for ${candidateName}.`, offer: `Offer sent to ${candidateName}.`, hire: `${candidateName} successfully hired!` };
     let status = action === 'shortlist' ? 'shortlisted' : action === 'offer' ? 'offer' : action === 'hire' ? 'hired' : 'interviewing';
-    let updates = { status, updated_at: new Date().toISOString(), hr_notes: noteByAction[action] };
+    let updates = { status, updated_at: new Date().toISOString() };
+    let hrNote = '';
+    let applicantMsg = '';
     
-    if (action === 'interview') {
-      const result = await promptModal(`Schedule Interview for ${candidateName}`, '<label class="full-width">Date & Time <input type="datetime-local" name="datetime" required></label>');
+    if (action === 'shortlist') {
+      hrNote = `${candidateName} was shortlisted.`;
+      applicantMsg = `You have been shortlisted by HR.`;
+    } else if (action === 'interview') {
+      const result = await promptModal(`Schedule Interview`, '<label class="full-width">Date & Time <input type="datetime-local" name="datetime" required></label>');
       if (!result) return;
       updates.interview_at = result.datetime;
-      updates.hr_notes = `Interview scheduled for ${candidateName} on ${formatDateTime(result.datetime)}.`;
-    }
-    
-    if (action === 'offer') {
-      const result = await promptModal(`Send Job Offer to ${candidateName}`, '<label class="full-width">Salary Amount (GHS) <input type="number" name="salary" placeholder="e.g. 5000" required></label>');
+      hrNote = `Interview scheduled for ${candidateName} on ${formatDateTime(result.datetime)}.`;
+      applicantMsg = `Your interview is scheduled for ${formatDateTime(result.datetime)}.`;
+    } else if (action === 'offer') {
+      const result = await promptModal(`Send Job Offer`, '<label class="full-width">Salary Amount (GHS) <input type="number" name="salary" placeholder="e.g. 5000" required></label>');
       if (!result) return;
       updates.salary_offered = Number(result.salary);
-      updates.hr_notes = `Offer sent to ${candidateName}: GHS ${result.salary}. Awaiting response.`;
-    }
-
-    if (action === 'hire') {
+      hrNote = `Offer of GHS ${result.salary} sent to ${candidateName}. Awaiting response.`;
+      applicantMsg = `You have received a job offer of GHS ${result.salary}. Tap here to respond.`;
+    } else if (action === 'hire') {
       updates.salary_offered = application.salary_offered || 0;
-      updates.hr_notes = `${candidateName} successfully hired!`;
+      hrNote = `${candidateName} successfully hired!`;
+      applicantMsg = `Congratulations! You have been successfully hired!`;
     }
 
+    updates.hr_notes = hrNote;
     await supabase.from('job_applications').update(updates).eq('id', application.id);
     
-    // Inject clean structured data for the Modal format
     await supabase.from('notifications').insert({ 
       user_id: application.applicant_id, 
       channel: 'dashboard', 
       type: `application_${status}`, 
       title: `Application Update`, 
-      body: `Candidate: ${candidateName}\nRole: ${application.job_posts?.title}\nUpdate: ${updates.hr_notes}`, 
+      body: `Role: ${application.job_posts?.title}\nUpdate: ${applicantMsg}`, 
       is_read: false 
     });
     
