@@ -289,10 +289,9 @@ function renderApplications() {
     const candidateName = app.user_profiles?.full_name || 'Candidate';
     const initials = getInitials(candidateName);
     
+    // Hardcoded to render initials exclusively
     if (picWrap) {
-      picWrap.innerHTML = app.profile_picture_url ? 
-        `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback\\'>${escapeHtml(initials)}</div>'" style="width:42px;height:42px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;flex-shrink:0;">` : 
-        `<div class="avatar-fallback">${escapeHtml(initials)}</div>`;
+      picWrap.innerHTML = `<div class="avatar-fallback">${escapeHtml(initials)}</div>`;
     }
 
     card.querySelector('.app-name').textContent = candidateName;
@@ -413,7 +412,7 @@ function renderApplicantArea() {
     card.innerHTML = `
       <div class="app-card-header">
         <div class="app-card-identity">
-          ${app.profile_picture_url ? `<img src="${escapeHtml(app.profile_picture_url)}" onerror="this.outerHTML='<div class=\\'avatar-fallback-lg\\'>${escapeHtml(initials)}</div>'" alt="Profile picture" />` : `<div class="avatar-fallback-lg">${escapeHtml(initials)}</div>`}
+          <div class="avatar-fallback-lg">${escapeHtml(initials)}</div>
           <div style="min-width:0;">
             <h3 style="margin:0; font-size:1.1rem;">${escapeHtml(app.job_posts?.title || '')}</h3>
             <p style="margin:0.2rem 0 0; font-size:0.9rem; color:var(--text-soft);">${escapeHtml(applicantName)}</p>
@@ -593,19 +592,11 @@ async function handleApply(event) {
   submitBtn.textContent = 'Uploading...';
 
   const cv = form.cv.files[0];
-  const profilePicture = form.profile_picture?.files[0];
-  let cvUrl = '', profilePictureUrl = '';
+  let cvUrl = '';
 
   try {
-    // Generate a single timestamp to be used by both uploads to prevent file path race conditions
-    const timestampId = Date.now();
-    
-    if (profilePicture) {
-      const { error } = await supabase.storage.from('profile-pictures').upload(`${state.session.user.id}/${timestampId}`, profilePicture, { upsert: true });
-      if (error) throw error;
-      profilePictureUrl = supabase.storage.from('profile-pictures').getPublicUrl(`${state.session.user.id}/${timestampId}`).data.publicUrl;
-    }
     if (cv) {
+      const timestampId = Date.now();
       const { error } = await supabase.storage.from('cvs').upload(`${state.session.user.id}/${timestampId}_cv`, cv, { upsert: true });
       if (error) throw error;
       cvUrl = supabase.storage.from('cvs').getPublicUrl(`${state.session.user.id}/${timestampId}_cv`).data.publicUrl;
@@ -613,7 +604,7 @@ async function handleApply(event) {
 
     const { error } = await supabase.from('job_applications').insert({
       applicant_id: state.session.user.id, job_post_id: form.job_id.value, cover_letter: form.cover_letter.value,
-      cv_url: cvUrl, profile_picture_url: profilePictureUrl, status: 'received'
+      cv_url: cvUrl, status: 'received'
     });
     if (error) {
        if (error.message.includes('duplicate key value')) throw new Error("You have already applied for this job.");
@@ -621,7 +612,6 @@ async function handleApply(event) {
     }
 
     form.reset();
-    document.getElementById('profile-picture-preview-wrap').hidden = true;
     await syncAndRender();
     setStatus('Application submitted successfully!', 'success');
   } catch (error) { setStatus(error.message, 'error'); } finally { 
@@ -733,6 +723,7 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  // WITHDRAWAL CONFIRMATION
   const appDeleteBtn = e.target.closest('[data-app-delete]');
   if (appDeleteBtn) {
     e.preventDefault();
@@ -817,7 +808,6 @@ document.addEventListener('click', async (e) => {
     
     const candidateName = application.user_profiles?.full_name || 'Candidate';
 
-    // Prevent redundant status updates from duplicating notifications
     if (action !== 'reject') {
        let targetedStatus = action === 'shortlist' ? 'shortlisted' : action === 'offer' ? 'offer' : action === 'hire' ? 'hired' : 'interviewing';
        if (application.status === targetedStatus) {
@@ -873,7 +863,6 @@ document.addEventListener('click', async (e) => {
     updates.hr_notes = hrNote;
     await supabase.from('job_applications').update(updates).eq('id', application.id);
     
-    // Inject notification with "You" instead of applicant's name
     await supabase.from('notifications').insert({ 
       user_id: application.applicant_id, 
       channel: 'dashboard', 
@@ -921,19 +910,6 @@ document.addEventListener('click', async (e) => {
     await syncAndRender();
   }
 });
-
-const profilePicInput = document.querySelector('input[name="profile_picture"]');
-if (profilePicInput) {
-  profilePicInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    const previewWrap = document.getElementById('profile-picture-preview-wrap');
-    const previewImg = document.getElementById('profile-picture-preview');
-    if (file && previewWrap && previewImg) {
-      previewImg.src = URL.createObjectURL(file);
-      previewWrap.hidden = false;
-    }
-  });
-}
 
 async function boot() {
   if (!supabase) return;

@@ -43,15 +43,7 @@
             <label class="full-width">Selected Job <input type="text" name="job_name_display" readonly required placeholder="Click 'Apply' on a job" /></label>
             <input type="hidden" name="job_id" />
             <label class="full-width">Cover Letter <textarea name="cover_letter" rows="4"></textarea></label>
-            <label class="full-width">Profile Picture <input type="file" name="profile_picture" accept="image/*" /></label>
-            <div class="full-width" id="profile-picture-preview-wrap" hidden>
-              <div class="section-title" style="margin-bottom: 0.65rem;">
-                <h3 style="font-size: 0.95rem;">Preview</h3>
-                <span class="chip">Before submit</span>
-              </div>
-              <img id="profile-picture-preview" alt="Profile picture preview" style="width: 120px; height: 120px; object-fit: cover; border-radius: 20px; border: 1px solid #e2e8f0; background: #fff; display: block;" />
-            </div>
-            <label class="full-width">Attach CV (PDF) <input type="file" name="cv" accept=".pdf,.doc,.docx" /></label>
+            <label class="full-width">Attach CV (PDF) <input type="file" name="cv" accept=".pdf,.doc,.docx" required /></label>
             <button class="button button-primary full-width" type="submit">Submit Application</button>
           </form>
         </div>
